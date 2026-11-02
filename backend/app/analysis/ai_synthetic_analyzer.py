@@ -217,7 +217,7 @@ class AISyntheticAnalyzer:
                 observations.append(f"Cross-channel noise residual correlation: {cross_channel_corr:.3f}.")
                 observations.append(f"Spatial noise residual autocorrelation: {spatial_autocorr:.3f}.")
 
-                # Calibrated Decision
+                # Heuristic screening decision; not a calibrated probability.
                 if synthetic_score >= 0.75:
                     indicator = "indicator_detected"
                     indicator_label = f"AI Generative / Synthetic Traces Detected ({synthetic_pct}%)"
@@ -270,8 +270,8 @@ class AISyntheticAnalyzer:
                 detector_name=cls.METHOD_NAME,
                 detector_version=cls.VERSION,
                 status=DetectorStatus.ERROR.value,
-                score=0.0,
-                confidence=0.0,
+                score=None,
+                confidence=None,
                 evidence_strength=EvidenceStrength.NONE.value,
                 applicable=True,
                 technical_reason=str(e),
@@ -292,7 +292,9 @@ class AISyntheticAnalyzer:
             limitations=limitations,
             execution_time_ms=exec_time,
             score=round(synthetic_score, 3),
-            confidence=round(confidence, 3),
+            confidence=None,
+            raw_score=round(synthetic_score, 3),
+            calibrated_probability=None,
             evidence_strength=strength,
             normalized_status=norm_status,
             affected_regions=affected_regions,
