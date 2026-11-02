@@ -104,15 +104,9 @@ class ForensicPipeline:
         all_artifacts: Dict[str, Any] = {}
 
         # 1. Test 1: Metadata & Deep Structural Chunk Forensics
-        if detector_applicable("metadata_examination"):
-            meta_res = MetadataAnalyzer.analyze(file_bytes, image_width, image_height, media_type)
-                    all_tests.append(meta_res["test_result"])
-                    extracted_metadata = meta_res["extracted_metadata"]
-        else:
-            meta_res = {"test_result": cls._not_applicable_test("Metadata & Deep Structural Chunk Forensics", image_char.get("inapplicable_detectors", {}).get("metadata_examination", "Not applicable")),
-                        "extracted_metadata": {}}
-            all_tests.append(meta_res["test_result"])
-            extracted_metadata = {}
+        meta_res = MetadataAnalyzer.analyze(file_bytes, image_width, image_height, media_type)
+        all_tests.append(meta_res["test_result"])
+        extracted_metadata = meta_res["extracted_metadata"]
 
         # Parse capture timestamp
         capture_timestamp = None
