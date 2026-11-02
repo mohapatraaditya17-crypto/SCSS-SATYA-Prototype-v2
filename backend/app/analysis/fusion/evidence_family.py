@@ -94,9 +94,12 @@ class EvidenceFamilyManager:
             elif len(pos_members) > 0 and len(neg_members) > 0:
                 fam_status = "CONTRADICTORY"
                 summary_str = f"Mixed observations: {len(pos_members)} positive vs {len(neg_members)} negative."
+            elif len(not_appl_members) == len(members):
+                fam_status = "NOT_APPLICABLE"
+                summary_str = "All family members are not applicable."
             else:
                 fam_status = "INCONCLUSIVE"
-                summary_str = f"{len(inconcl_members)} detector(s) returned inconclusive observations."
+                summary_str = f"{len(inconcl_members)} inconclusive and {len(error_members)} error result(s); errors are not negative evidence."
 
             family_summaries[fam_name] = EvidenceFamilySummary(
                 family=fam_name,
