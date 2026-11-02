@@ -168,10 +168,8 @@ class AISyntheticAnalyzer:
                         )
                     )
 
-                # 5. Synthesize Calibrated Score
-                if metadata_ai_found:
-                    synthetic_score = 0.98
-                else:
+                # 5. Compute an uncalibrated heuristic score. AI metadata is
+                # recorded separately and never inflates this score.
                     if cross_channel_corr > 0.95:
                         c_score = 0.60 + 0.35 * ((cross_channel_corr - 0.95) / 0.05)
                     elif cross_channel_corr > 0.88:
@@ -212,29 +210,31 @@ class AISyntheticAnalyzer:
                 cv2.imwrite(str(artifact_path), blended)
                 artifacts["ai_synthetic_map"] = artifact_filename
 
-                observations.append(f"Synthetic Likelihood Index: {synthetic_pct}% (calibrated multi-feature residual model).")
+                observations.append(f"Uncalibrated statistical synthetic-indicator score: {synthetic_pct}%.")
+                if metadata_ai_found:
+                    observations.append(f"AI-related metadata indication observed ({meta_source}); metadata is mutable and not verification.")
                 observations.append(f"Fourier radial spectral decay slope: alpha={spectral_slope:.2f}.")
                 observations.append(f"Cross-channel noise residual correlation: {cross_channel_corr:.3f}.")
                 observations.append(f"Spatial noise residual autocorrelation: {spatial_autocorr:.3f}.")
 
                 # Calibrated Decision
-                if synthetic_score >= 0.75 or metadata_ai_found:
+                if synthetic_score >= 0.75:
                     indicator = "indicator_detected"
                     indicator_label = f"AI Generative / Synthetic Traces Detected ({synthetic_pct}%)"
                     norm_status = DetectorStatus.POSITIVE.value
-                    confidence = 0.88
+                    confidence = None
                     strength = EvidenceStrength.STRONG.value
                     explanation = (
-                        f"Elevated AI generative traces detected (Synthetic Likelihood Index: {synthetic_pct}%). "
-                        f"Noise residual cross-channel correlation ({cross_channel_corr:.3f}), spatial autocorrelation ({spatial_autocorr:.3f}), "
-                        f"and spectral roll-off (alpha={spectral_slope:.2f}) deviate significantly from physical optical sensor physics, "
-                        "exhibiting statistical signatures characteristic of latent diffusion synthesis or generative fill."
+                        f"Statistical image features crossed the heuristic screening threshold (raw score {synthetic_pct}%). "
+                        f"Cross-channel residual correlation ({cross_channel_corr:.3f}), spatial autocorrelation ({spatial_autocorr:.3f}), "
+                        f"and spectral decay (alpha={spectral_slope:.2f}) warrant examination for synthetic generation. "
+                        "This uncalibrated heuristic cannot establish AI origin."
                     )
                 elif synthetic_score >= 0.45:
                     indicator = "inconclusive"
                     indicator_label = f"Inconclusive / Mixed Indicators ({synthetic_pct}%)"
                     norm_status = DetectorStatus.INCONCLUSIVE.value
-                    confidence = 0.50
+                    confidence = None
                     strength = EvidenceStrength.LOW.value
                     explanation = (
                         f"Moderate synthetic likelihood score ({synthetic_pct}%). "
@@ -245,7 +245,7 @@ class AISyntheticAnalyzer:
                     indicator = "no_indicator_detected"
                     indicator_label = f"No AI Generative Traces Detected ({synthetic_pct}%)"
                     norm_status = DetectorStatus.NEGATIVE.value
-                    confidence = 0.85
+                    confidence = None
                     strength = EvidenceStrength.NONE.value
                     explanation = (
                         f"Low synthetic likelihood index ({synthetic_pct}%). "
