@@ -28,9 +28,9 @@ class ModelRegistry:
 
     _MODELS: Dict[str, ModelMetadata] = {
         "satya-forensic-fusion-ml": ModelMetadata(
-            model_name="satya-forensic-fusion-ml",
+            model_name="satya-forensic-fusion-ml-placeholder",
             model_version="2.0.0",
-            model_hash="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            model_hash="UNVERIFIED_PLACEHOLDER_EMPTY_FILE_SHA256",
             training_dataset_version="SATYA-FD-2026-V2",
             training_date="2026-10-28T00:00:00Z",
             threshold_profile="production-v2",
@@ -49,10 +49,8 @@ class ModelRegistry:
                 "srm_splice_score",
             ],
             metrics={
-                "balanced_accuracy": 0.88,
-                "f1_score": 0.89,
-                "roc_auc": 0.93,
-                "calibration_brier_score": 0.08,
+                "status": "UNVERIFIED_PLACEHOLDER",
+                "reason": "Configured coefficients and placeholder digest do not identify a reproducible trained model or independent validation run.",
             }
         )
     }
