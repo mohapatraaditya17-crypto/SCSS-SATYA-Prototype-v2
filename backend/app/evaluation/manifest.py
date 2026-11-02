@@ -55,6 +55,10 @@ class SourceDeviceType(str, Enum):
 class SpecimenRecord(BaseModel):
     specimen_id: str
     source_id: str
+    parent_id: Optional[str] = None
+    source_group: Optional[str] = None
+    device_group: Optional[str] = None
+    media_class: Optional[str] = None
     ground_truth: str  # AUTHENTIC, TAMPERED
     manipulation_type: str = ManipulationType.AUTHENTIC.value
     manipulation_subtype: Optional[str] = None
@@ -70,6 +74,9 @@ class SpecimenRecord(BaseModel):
     dataset_split: str = "test"  # train, val, test
     file_path: Optional[str] = None
     sha256: Optional[str] = None
+    label_source: Optional[str] = None
+    adjudication_reference: Optional[str] = None
+    compression_history: List[str] = Field(default_factory=list)
 
 
 class DatasetManifest(BaseModel):
@@ -92,10 +99,15 @@ class DatasetManifest(BaseModel):
         Guarantees that all derivative manipulations originating from source X
         fall into the exact same partition as source X, preventing data leakage.
         """
+        if any(value < 0 for value in (train_ratio, val_ratio, test_ratio)):
+            raise ValueError("Split ratios must be non-negative.")
+        if abs((train_ratio + val_ratio + test_ratio) - 1.0) > 1e-9:
+            raise ValueError("train_ratio + val_ratio + test_ratio must equal 1.0.")
         updated_records: List[SpecimenRecord] = []
         for rec in specimens:
-            # Deterministic hash of source_id
-            h = hashlib.sha256(f"{rec.source_id}_{salt}".encode()).hexdigest()
+            # Keep all parent/derivative specimens together by explicit source group.
+            group = rec.source_group or rec.source_id
+            h = hashlib.sha256(f"{group}_{salt}".encode()).hexdigest()
             val = int(h[:8], 16) / 0xFFFFFFFF
 
             if val < train_ratio:
