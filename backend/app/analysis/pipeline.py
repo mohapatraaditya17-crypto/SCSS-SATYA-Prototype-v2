@@ -108,21 +108,6 @@ class ForensicPipeline:
         all_tests.append(meta_res["test_result"])
         extracted_metadata = meta_res["extracted_metadata"]
 
-        # Parse capture timestamp
-        capture_timestamp = None
-        raw_date = (
-            extracted_metadata.get("DateTimeOriginal") or
-            extracted_metadata.get("DateTime") or
-            extracted_metadata.get("PNG:LastModified")
-        )
-        if raw_date:
-            try:
-                date_str = str(raw_date).strip().replace("/", ":")
-                dt = datetime.strptime(date_str[:19], "%Y:%m:%d %H:%M:%S")
-                capture_timestamp = dt.replace(tzinfo=timezone.utc)
-            except Exception:
-                pass
-
         # 0. Phase 0: Image Characterization & Applicability Determination
         image_char = ImageCharacterizer.characterize(
             image_path=image_path,
@@ -139,6 +124,21 @@ class ForensicPipeline:
         def record_inapplicable(detector_id: str, method: str) -> None:
             reason = image_char.get("inapplicable_detectors", {}).get(detector_id) or "Characterization rules marked this method not applicable."
             all_tests.append(cls._not_applicable_test(method, reason))
+
+        # Parse capture timestamp
+        capture_timestamp = None
+        raw_date = (
+            extracted_metadata.get("DateTimeOriginal") or
+            extracted_metadata.get("DateTime") or
+            extracted_metadata.get("PNG:LastModified")
+        )
+        if raw_date:
+            try:
+                date_str = str(raw_date).strip().replace("/", ":")
+                dt = datetime.strptime(date_str[:19], "%Y:%m:%d %H:%M:%S")
+                capture_timestamp = dt.replace(tzinfo=timezone.utc)
+            except Exception:
+                pass
 
         # 2. Test 2: Dual Cryptographic & Perceptual Hashing
         if detector_applicable("cryptographic_and_perceptual_hashing"):
