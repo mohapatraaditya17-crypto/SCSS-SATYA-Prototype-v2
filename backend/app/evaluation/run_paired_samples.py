@@ -59,6 +59,9 @@ def upload(client: httpx.Client, path: Path) -> dict[str, Any]:
                 "indicator": item.get("indicator"),
                 "score": item.get("score"),
                 "confidence": item.get("confidence"),
+                "observations": item.get("observations"),
+                "explanation": item.get("explanation"),
+                "limitations": item.get("limitations"),
             }
             for item in result.get("tests", [])
         ],
