@@ -9,6 +9,8 @@ class BinaryMetrics(BaseModel):
     fp: int = 0
     fn: int = 0
     inconclusive: int = 0
+    error: int = 0
+    not_applicable: int = 0
     total: int = 0
 
     @property
@@ -65,6 +67,13 @@ class BinaryMetrics(BaseModel):
         return round(self.inconclusive / max(1, self.total), 4)
 
     @property
+    def coverage(self) -> Optional[float]:
+        applicable = self.total - self.not_applicable
+        if applicable <= 0:
+            return None
+        return round((applicable - self.error) / applicable, 4)
+
+    @property
     def fpr(self) -> Optional[float]:
         denom = self.fp + self.tn
         return round(self.fp / denom, 4) if denom > 0 else None
@@ -81,6 +90,9 @@ class BinaryMetrics(BaseModel):
             "FP": self.fp,
             "FN": self.fn,
             "Inconclusive": self.inconclusive,
+            "Errors": self.error,
+            "Not_Applicable": self.not_applicable,
+            "Coverage": self.coverage,
             "Total": self.total,
             "Sensitivity": self.sensitivity,
             "Specificity": self.specificity,
