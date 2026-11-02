@@ -1,173 +1,164 @@
-from typing import List, Dict, Any, Optional
+from typing import Dict, Any
 from collections import defaultdict
 from app.evaluation.metrics import BinaryMetrics
 
 
 class ConfusionMatrixEngine:
-    """
-    Forensic Confusion Matrix & Defensible Evaluation Engine (SATYA v2).
-    Generates:
-      1. Overall System Confusion Matrix (Preserving INCONCLUSIVE/REVIEW category)
-      2. Detector-Level Confusion Matrices & Forensic Metrics
-      3. Manipulation-Type Breakdown Matrix
-      4. Image-Class Breakdown Matrix
-    """
-    VERSION = "2.0.0"
+    """Multi-dimensional evaluation; ERROR and NOT_APPLICABLE remain separate states."""
+    VERSION = "2.1.0"
 
     def __init__(self):
-        # Overall System Confusion Matrix: Ground Truth -> System Decision -> Count
-        # Ground truth: 'AUTHENTIC', 'TAMPERED'
-        # System decision: 'AUTHENTIC', 'TAMPERED', 'REVIEW'
-        self.system_matrix: Dict[str, Dict[str, int]] = {
+        self.system_matrix = {
             "AUTHENTIC": {"AUTHENTIC": 0, "TAMPERED": 0, "REVIEW": 0},
             "TAMPERED": {"AUTHENTIC": 0, "TAMPERED": 0, "REVIEW": 0},
         }
-
-        # Detector-level metrics: detector_name -> BinaryMetrics
-        self.detector_metrics: Dict[str, BinaryMetrics] = defaultdict(BinaryMetrics)
-
-        # Manipulation-type breakdown: manipulation_type -> detector_name -> {positive, negative, inconclusive}
-        self.manipulation_breakdown: Dict[str, Dict[str, Dict[str, int]]] = defaultdict(
-            lambda: defaultdict(lambda: {"positive": 0, "negative": 0, "inconclusive": 0, "total": 0})
-        )
-
-        # Image-class breakdown: image_class -> {AUTHENTIC, TAMPERED, REVIEW}
-        self.image_class_breakdown: Dict[str, Dict[str, int]] = defaultdict(
-            lambda: {"AUTHENTIC": 0, "TAMPERED": 0, "REVIEW": 0, "total": 0}
-        )
+        self.detector_metrics = defaultdict(BinaryMetrics)
+        self.detector_status_counts = defaultdict(lambda: {
+            "positive": 0, "negative": 0, "inconclusive": 0,
+            "error": 0, "not_applicable": 0, "total": 0,
+        })
+        self.manipulation_breakdown = defaultdict(lambda: defaultdict(lambda: {
+            "positive": 0, "negative": 0, "inconclusive": 0,
+            "error": 0, "not_applicable": 0, "total": 0,
+        }))
+        self.image_class_breakdown = defaultdict(lambda: {
+            "AUTHENTIC": 0, "TAMPERED": 0, "REVIEW": 0, "total": 0,
+        })
+        self.source_breakdown = defaultdict(lambda: {
+            "AUTHENTIC": 0, "TAMPERED": 0, "REVIEW": 0, "total": 0,
+        })
+        self.compression_breakdown = defaultdict(lambda: {
+            "AUTHENTIC": 0, "TAMPERED": 0, "REVIEW": 0, "total": 0,
+        })
+        self.coverage = {"applicable": 0, "successful": 0, "error": 0, "not_applicable": 0}
 
     def record_sample(
         self,
-        ground_truth: str,  # 'AUTHENTIC' or 'TAMPERED'
-        system_decision: str,  # 'LIKELY_AUTHENTIC', 'LIKELY_TAMPERED', 'INCONCLUSIVE', 'requires_human_review'
-        detector_observations: Dict[str, str],  # detector_name -> 'positive' | 'negative' | 'inconclusive' | 'not_applicable'
+        ground_truth: str,
+        system_decision: str,
+        detector_observations: Dict[str, str],
         manipulation_type: str = "UNKNOWN",
-        image_class: str = "PHOTOGRAPH",
+        image_class: str = "UNKNOWN",
+        source_type: str = "UNKNOWN",
+        compression_history: str = "UNKNOWN",
     ) -> None:
-        """
-        Records a single forensic specimen observation across all evaluation dimensions.
-        """
         gt = ground_truth.upper()
         if gt not in self.system_matrix:
-            self.system_matrix[gt] = {"AUTHENTIC": 0, "TAMPERED": 0, "REVIEW": 0}
-
-        # Map system decision
-        dec = system_decision.upper()
-        if "TAMPER" in dec:
-            pred_col = "TAMPERED"
-        elif "AUTH" in dec and "NOT" not in dec:
-            pred_col = "AUTHENTIC"
+            raise ValueError("ground_truth must be AUTHENTIC or TAMPERED")
+        decision = system_decision.upper()
+        if "TAMPER" in decision or "MANIPULATION_INDICATORS_DETECTED" in decision:
+            prediction = "TAMPERED"
+        elif decision in {"LIKELY_AUTHENTIC", "AUTHENTIC"}:
+            # Historical import compatibility only. Current v2.1 does not emit this.
+            prediction = "AUTHENTIC"
         else:
-            pred_col = "REVIEW"
+            prediction = "REVIEW"
+        self.system_matrix[gt][prediction] += 1
 
-        self.system_matrix[gt][pred_col] += 1
-        self.image_class_breakdown[image_class][pred_col] += 1
-        self.image_class_breakdown[image_class]["total"] += 1
+        for buckets, key in (
+            (self.image_class_breakdown, image_class),
+            (self.source_breakdown, source_type),
+            (self.compression_breakdown, compression_history),
+        ):
+            buckets[key][prediction] += 1
+            buckets[key]["total"] += 1
 
-        # Record detector-level metrics
-        for det_name, obs_status in detector_observations.items():
-            obs = obs_status.lower().strip()
-            bm = self.detector_metrics[det_name]
-            bm.total += 1
+        for detector, state in detector_observations.items():
+            observation = str(state).upper().strip()
+            counts = self.detector_status_counts[detector]
+            counts["total"] += 1
+            metric = self.detector_metrics[detector]
+            metric.total += 1
+            stratum = self.manipulation_breakdown[manipulation_type][detector]
+            stratum["total"] += 1
 
-            is_positive = (obs == "indicator_detected" or obs == "positive")
-            is_negative = (obs == "no_indicator_detected" or obs == "negative")
-
-            if is_positive:
+            if observation in {"POSITIVE", "INDICATOR_DETECTED"}:
+                counts["positive"] += 1
+                stratum["positive"] += 1
                 if gt == "TAMPERED":
-                    bm.tp += 1
+                    metric.tp += 1
                 else:
-                    bm.fp += 1
-                self.manipulation_breakdown[manipulation_type][det_name]["positive"] += 1
-            elif is_negative:
+                    metric.fp += 1
+                self.coverage["applicable"] += 1
+                self.coverage["successful"] += 1
+            elif observation in {"NEGATIVE", "NO_INDICATOR_DETECTED"}:
+                counts["negative"] += 1
+                stratum["negative"] += 1
                 if gt == "AUTHENTIC":
-                    bm.tn += 1
+                    metric.tn += 1
                 else:
-                    bm.fn += 1
-                self.manipulation_breakdown[manipulation_type][det_name]["negative"] += 1
+                    metric.fn += 1
+                self.coverage["applicable"] += 1
+                self.coverage["successful"] += 1
+            elif observation == "NOT_APPLICABLE":
+                counts["not_applicable"] += 1
+                stratum["not_applicable"] += 1
+                self.coverage["not_applicable"] += 1
+            elif observation == "ERROR":
+                counts["error"] += 1
+                stratum["error"] += 1
+                self.coverage["applicable"] += 1
+                self.coverage["error"] += 1
             else:
-                bm.inconclusive += 1
-                self.manipulation_breakdown[manipulation_type][det_name]["inconclusive"] += 1
-            self.manipulation_breakdown[manipulation_type][det_name]["total"] += 1
+                counts["inconclusive"] += 1
+                stratum["inconclusive"] += 1
+                metric.inconclusive += 1
+                self.coverage["applicable"] += 1
+                self.coverage["successful"] += 1
 
     def compute_summary(self) -> Dict[str, Any]:
-        """
-        Calculates all summary matrices and performance metrics.
-        """
-        det_summary = {
-            det_name: bm.summary_dict()
-            for det_name, bm in self.detector_metrics.items()
+        detector_metrics = {
+            name: metrics.summary_dict()
+            for name, metrics in self.detector_metrics.items()
         }
-
-        # Format manipulation type summary table
-        manip_summary: Dict[str, Dict[str, Any]] = {}
-        for m_type, dets in self.manipulation_breakdown.items():
-            manip_summary[m_type] = {}
-            for d_name, counts in dets.items():
-                tot = max(1, counts["total"])
-                manip_summary[m_type][d_name] = {
-                    "positive_count": counts["positive"],
-                    "positive_rate_pct": round(counts["positive"] / tot * 100.0, 1),
-                    "inconclusive_rate_pct": round(counts["inconclusive"] / tot * 100.0, 1),
-                    "total": counts["total"],
+        manipulation = {}
+        for kind, detectors in self.manipulation_breakdown.items():
+            manipulation[kind] = {}
+            for name, counts in detectors.items():
+                applicable = counts["total"] - counts["not_applicable"]
+                manipulation[kind][name] = {
+                    **counts,
+                    "positive_rate_pct": round(100 * counts["positive"] / max(1, applicable), 1),
+                    "inconclusive_rate_pct": round(100 * counts["inconclusive"] / max(1, applicable), 1),
                 }
-
+        denominator = self.coverage["applicable"]
         return {
-            "overall_system_confusion_matrix": self.system_matrix,
-            "detector_level_confusion_matrices": det_summary,
-            "manipulation_type_matrix": manip_summary,
+            "overall_system_confusion_matrix": dict(self.system_matrix),
+            "detector_level_confusion_matrices": detector_metrics,
+            "detector_status_counts": dict(self.detector_status_counts),
+            "manipulation_type_matrix": manipulation,
             "image_class_matrix": dict(self.image_class_breakdown),
+            "source_type_matrix": dict(self.source_breakdown),
+            "compression_matrix": dict(self.compression_breakdown),
+            "coverage": {
+                **self.coverage,
+                "coverage_score": round(self.coverage["successful"] / denominator, 4) if denominator else None,
+            },
         }
 
     def format_markdown_report(self) -> str:
-        """
-        Generates a publication-grade GitHub Flavored Markdown report.
-        """
-        md = []
-        md.append("## SCSS SATYA v2 — Forensic Evaluation & Confusion Matrix Report\n")
-
-        # 1. Overall System Matrix
-        md.append("### 1. Overall System Decision Matrix")
-        md.append("| Ground Truth | System: Authentic | System: Tampered | System: Review / Inconclusive | Total |")
-        md.append("|---|---|---|---|---|")
-        for gt, cols in sorted(self.system_matrix.items()):
-            tot = sum(cols.values())
-            md.append(f"| **{gt}** | {cols.get('AUTHENTIC', 0)} | {cols.get('TAMPERED', 0)} | {cols.get('REVIEW', 0)} | **{tot}** |")
-
-        # 2. Detector Performance Table
-        md.append("\n### 2. Detector-Level Forensic Metrics")
-        md.append("| Detector | Sensitivity | Specificity | Precision | F1 | Balanced Acc | MCC | Inconclusive Rate | Decisive Total |")
-        md.append("|---|---|---|---|---|---|---|---|---|")
-        for det_name, bm in sorted(self.detector_metrics.items()):
-            sens = f"{bm.sensitivity * 100:.1f}%" if bm.sensitivity is not None else "N/A"
-            spec = f"{bm.specificity * 100:.1f}%" if bm.specificity is not None else "N/A"
-            prec = f"{bm.precision * 100:.1f}%" if bm.precision is not None else "N/A"
-            f1 = f"{bm.f1:.3f}" if bm.f1 is not None else "N/A"
-            bacc = f"{bm.balanced_accuracy * 100:.1f}%" if bm.balanced_accuracy is not None else "N/A"
-            mcc = f"{bm.mcc:.3f}" if bm.mcc is not None else "N/A"
-            inconcl = f"{bm.inconclusive_rate * 100:.1f}%"
-            md.append(f"| `{det_name}` | {sens} | {spec} | {prec} | {f1} | {bacc} | {mcc} | {inconcl} | {bm.decisive_total} |")
-
-        # 3. Manipulation Type Table
-        md.append("\n### 3. Manipulation-Type Detection Sensitivity Breakdown")
-        m_types = sorted(self.manipulation_breakdown.keys())
-        key_dets = [
-            "copy_move_forgery_detection",
-            "image_splicing_detector",
-            "noise_residual_analysis",
-            "ai_generative_classifier",
-            "error_level_analysis",
-            "document_typography_and_alignment",
+        summary = self.compute_summary()
+        lines = [
+            "## SCSS SATYA v2.1 — Forensic Evaluation and Decision Matrix",
+            "",
+            "Historical operational runs are not independent validation and must not be used as accuracy claims without adjudicated ground truth.",
+            "",
+            "### Overall system matrix",
+            "| Ground truth | Authentic | Tampered indicators | Review |",
+            "|---|---:|---:|---:|",
         ]
-        md.append("| Manipulation Type | " + " | ".join(f"`{d[:12]}`" for d in key_dets) + " |")
-        md.append("|---" * (len(key_dets) + 1) + "|")
-        for mt in m_types:
-            row = [f"**{mt}**"]
-            for d in key_dets:
-                stats = self.manipulation_breakdown[mt].get(d, {"positive": 0, "total": 0})
-                tot = max(1, stats["total"])
-                rate = (stats["positive"] / tot) * 100.0
-                row.append(f"{rate:.1f}% ({stats['positive']}/{tot})")
-            md.append("| " + " | ".join(row) + " |")
-
-        return "\n".join(md)
+        for label, counts in sorted(summary["overall_system_confusion_matrix"].items()):
+            lines.append(f"| {label} | {counts['AUTHENTIC']} | {counts['TAMPERED']} | {counts['REVIEW']} |")
+        lines.extend([
+            "",
+            "### Detector status and metrics",
+            "| Detector | TP | TN | FP | FN | Inconclusive | Errors | Not applicable |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|",
+        ])
+        for name, metrics in sorted(summary["detector_level_confusion_matrices"].items()):
+            states = summary["detector_status_counts"][name]
+            lines.append(
+                f"| {name} | {metrics['TP']} | {metrics['TN']} | {metrics['FP']} | {metrics['FN']} | "
+                f"{metrics['Inconclusive']} | {states['error']} | {states['not_applicable']} |"
+            )
+        return "\n".join(lines)
