@@ -286,7 +286,7 @@ export const ExaminationResults: React.FC = () => {
         <div className={`rounded-xl border-2 shadow-xs p-5 ${
           decisionAssessment === 'LIKELY_TAMPERED' || decisionAssessment === 'MANIPULATION_INDICATORS_DETECTED' || decisionAssessment === 'PROVENANCE_CONFLICT'
             ? 'bg-rose-50 border-rose-300'
-            : decisionAssessment === 'LIKELY_AUTHENTIC' || decisionAssessment === 'PROVENANCE_VERIFIED' || decisionAssessment === 'NO_MANIPULATION_INDICATORS_DETECTED'
+            : decisionAssessment === 'LIKELY_AUTHENTIC' || decisionAssessment === 'PROVENANCE_VERIFIED'
             ? 'bg-emerald-50 border-emerald-300'
             : 'bg-amber-50 border-amber-300'
         }`}>
