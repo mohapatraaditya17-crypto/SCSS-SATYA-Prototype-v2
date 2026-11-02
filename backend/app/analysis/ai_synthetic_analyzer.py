@@ -250,9 +250,9 @@ class AISyntheticAnalyzer:
                     confidence = None
                     strength = EvidenceStrength.NONE.value
                     explanation = (
-                        f"Low synthetic likelihood index ({synthetic_pct}%). "
+                        f"Low uncalibrated heuristic score ({synthetic_pct}; not a probability). "
                         f"Radial spectral decay (alpha={spectral_slope:.2f}) and noise residual correlations conform to standard "
-                        "several measured features are within the heuristic range. This does not establish natural optical capture or exclude generation/editing."
+                        "the measured features did not cross the exploratory heuristic threshold. This does not establish natural optical capture or exclude generation/editing."
                     )
 
         except Exception as e:
@@ -304,7 +304,7 @@ class AISyntheticAnalyzer:
             detector_version=cls.VERSION,
             status=norm_status,
             score=round(synthetic_score, 3),
-            confidence=round(confidence, 3),
+            confidence=None,
             evidence_strength=strength,
             applicable=True,
             technical_reason=explanation,
