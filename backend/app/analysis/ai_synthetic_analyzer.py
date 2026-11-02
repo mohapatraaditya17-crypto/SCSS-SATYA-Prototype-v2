@@ -203,16 +203,20 @@ class AISyntheticAnalyzer:
                 analytics["metadata_flag_source"] = meta_source if metadata_ai_found else None
                 analytics["score_semantics"] = "UNCALIBRATED_HEURISTIC_NOT_PROBABILITY"
 
-                # Generate Visual Artifact
-                resized_map = cv2.resize(norm_patch_scores, (width, height), interpolation=cv2.INTER_CUBIC)
-                norm_vis = cv2.normalize(resized_map, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-                colored_vis = cv2.applyColorMap(norm_vis, cv2.COLORMAP_MAGMA)
-                blended = cv2.addWeighted(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR), 0.35, colored_vis, 0.65, 0)
-
-                artifact_filename = f"{examination_id}_ai_synthetic.png"
-                artifact_path = settings.ARTIFACTS_DIR / artifact_filename
-                cv2.imwrite(str(artifact_path), blended)
-                artifacts["ai_synthetic_map"] = artifact_filename
+                # Visualization is best-effort and must not invalidate detector analysis.
+                try:
+                    resized_map = cv2.resize(norm_patch_scores, (width, height), interpolation=cv2.INTER_CUBIC)
+                    norm_vis = cv2.normalize(resized_map, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+                    colored_vis = cv2.applyColorMap(norm_vis, cv2.COLORMAP_MAGMA)
+                    blended = cv2.addWeighted(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR), 0.35, colored_vis, 0.65, 0)
+                    artifact_filename = f"{examination_id}_ai_synthetic.png"
+                    artifact_path = settings.ARTIFACTS_DIR / artifact_filename
+                    if cv2.imwrite(str(artifact_path), blended):
+                        artifacts["ai_synthetic_map"] = artifact_filename
+                    else:
+                        limitations.append("AI heuristic visualization could not be written; numeric screening features remain available.")
+                except Exception as visualization_error:
+                    limitations.append(f"AI heuristic visualization unavailable: {visualization_error}")
 
                 observations.append(f"Raw uncalibrated statistical heuristic score: {synthetic_pct} (not a probability).")
                 observations.append(f"Fourier radial spectral decay slope: alpha={spectral_slope:.2f}.")
