@@ -295,8 +295,6 @@ class AISyntheticAnalyzer:
             confidence=None,
             raw_score=round(synthetic_score, 3),
             calibrated_probability=None,
-            raw_score=round(synthetic_score, 3),
-            calibrated_probability=None,
             evidence_strength=strength,
             normalized_status=norm_status,
             affected_regions=affected_regions,
