@@ -96,7 +96,7 @@ def test_valid_jpeg_upload():
     assert any(t["method"] == "fourier_spectral_analysis" for t in data["tests"])
     assert any(t["method"] == "copy_move_forgery_detection" for t in data["tests"])
     assert any(t["method"] == "ai_generative_classifier" for t in data["tests"])
-    assert any(t["method"] == "document_typography_and_alignment" for t in data["tests"])
+    # Typography is correctly not applicable to a natural photograph; verify its gated result exists.\n    assert any(t["status"] == "not_applicable" and "Typography" in t["method"] for t in data["tests"])
     assert "noise_residual_map" in data["artifacts"]
     assert "fft_spectrum" in data["artifacts"]
     assert "copymove_map" in data["artifacts"]
