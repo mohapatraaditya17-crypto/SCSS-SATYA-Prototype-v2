@@ -140,7 +140,7 @@ class EvidenceFusionEngine:
         elif document_analytics.get("document_type") in ["pdf", "office_openxml"]:
             q1_origin = f"Digital Document Structure ({document_analytics.get('document_type').upper()})"
             origin_code = "DOCUMENT_CONTAINER"
-        elif ai_declared or any(d.detector == "ai_generative_classifier" for d in decision_output.decisive_observations):
+        elif ai_declared or decision_output.final_assessment == "AI_GENERATION_INDICATORS_DETECTED":
             q1_origin = "Statistical or declared synthetic-generation indicators; origin is not independently verified"
             origin_code = "AI_LATENT_SYNTHESIS"
         else:
@@ -172,7 +172,7 @@ class EvidenceFusionEngine:
 
         # Q3: Generation
         if ai_declared:
-            q3_generation = "Generative AI: Explicitly Declared in C2PA Provenance Manifest"
+            q3_generation = "C2PA manifest declares AI generation; verify signature, signer trust, and claim scope"
             generation_code = "AI_DECLARED"
         elif decision_output.final_assessment == "AI_GENERATION_INDICATORS_DETECTED":
             q3_generation = "Statistical synthetic-generation indicators observed; origin is unverified"
@@ -184,7 +184,7 @@ class EvidenceFusionEngine:
             q3_generation = "Camera metadata is present; generation origin is undetermined"
             generation_code = "CAMERA_METADATA_UNVERIFIED"
         else:
-            q3_generation = "Standard Digital Media (No Generative Diffusion Markers Detected)"
+            q3_generation = "Generation origin undetermined; no configured synthetic indicator crossed threshold"
             generation_code = "CONVENTIONAL_DIGITAL"
 
         # Q4: Transformation
@@ -200,7 +200,7 @@ class EvidenceFusionEngine:
         if "photoshop" in str(metadata_software).lower():
             transformations.append("Exported or Edited via Adobe Photoshop")
         if not transformations:
-            transformations.append("No post-capture spatial transformation detected")
+            transformations.append("No transformation indicator reported by configured screening methods; transformations are not excluded")
         q4_transformation = "; ".join(transformations)
 
         # 8. Build Explainability Evidentiary Hierarchy
