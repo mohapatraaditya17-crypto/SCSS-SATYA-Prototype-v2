@@ -71,7 +71,8 @@ class ImageCharacterizer:
         aspect_ratio = round(image_width / max(1, image_height), 3)
 
         # 2. Inspect Metadata & Provenance flags
-        has_camera_exif = bool(extracted_metadata.get("Make") or extracted_metadata.get("Model"))
+        # Embedded camera tags are mutable metadata, not proof of optical capture.
+        camera_metadata_present = bool(extracted_metadata.get("Make") or extracted_metadata.get("Model"))
         camera_make = extracted_metadata.get("Make")
         camera_model = extracted_metadata.get("Model")
         software_tag = extracted_metadata.get("Software")
@@ -117,23 +118,19 @@ class ImageCharacterizer:
         # Priority order:
         #   1. Document (white-ratio content heuristic is strongest signal for docs)
         #   2. Screenshot (filename or exact screen resolution + PNG + no EXIF camera)
-        #   3. Camera EXIF (physical camera metadata outranks flat-graphic pixel heuristic;
-        #      a solid-color synthetic test image with Nikon EXIF should be PHOTOGRAPH)
+        #   3. Conservative format fallback. Camera EXIF is a routing hint only;
+        #      it must not establish image origin or force PHOTOGRAPH classification.
         #   4. Flat graphic (low-std solid regions with no camera metadata)
         #   5. AI-software tag or canonical AI resolution (no camera)
         #   6. JPEG format fallback (JPEG without any above signals → photographic source)
         #   7. Unknown
         if is_document_candidate:
             image_class = "DOCUMENT"
-        elif is_screenshot_name or (is_screen_resolution and not has_camera_exif and is_png):
+        elif is_screenshot_name or (is_screen_resolution and not camera_metadata_present and is_png):
             image_class = "SCREENSHOT"
-        elif has_camera_exif:
-            # Physical camera metadata is authoritative: classify as photograph even if
-            # pixel statistics happen to look "flat" (e.g. synthetic test images, skies).
-            image_class = "PHOTOGRAPH"
         elif is_flat_graphic:
             image_class = "GRAPHIC"
-        elif is_ai_software or (is_ai_res and not has_camera_exif):
+        elif is_ai_software or (is_ai_res and not camera_metadata_present):
             image_class = "AI_CANDIDATE"
         elif is_jpeg:
             image_class = "PHOTOGRAPH"
@@ -179,7 +176,15 @@ class ImageCharacterizer:
             "dimensions": {"width": image_width, "height": image_height},
             "megapixels": megapixels,
             "aspect_ratio": aspect_ratio,
-            "has_camera_exif": has_camera_exif,
+            # Legacy alias retained for compatibility; presence is not verification.
+            "has_camera_exif": camera_metadata_present,
+            "camera_metadata_present": camera_metadata_present,
+            "camera_metadata_consistent": None,
+            "camera_metadata_complete": bool(camera_make and camera_model),
+            "camera_metadata_plausible": None,
+            "camera_metadata_verified": False,
+            "cryptographic_provenance_verified": False,
+            "provenance_level": 1 if camera_metadata_present else 0,
             "camera_make": camera_make,
             "camera_model": camera_model,
             "software_tag": software_tag,
