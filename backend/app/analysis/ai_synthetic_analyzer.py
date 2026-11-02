@@ -34,12 +34,12 @@ class AISyntheticAnalyzer:
         limitations: List[str] = [
             "AI generation screening evaluates statistical spectral decay, high-frequency residuals, frequency lattice patterns, and cross-channel co-occurrence.",
             "Modern diffusion architectures (Midjourney v6, Stable Diffusion XL, FLUX.1) evolve rapidly and post-processing (noise injection, heavy recompression) may attenuate signatures.",
-            "Synthetic likelihood scores provide investigative triage probability to guide expert inspection, not definitive judicial proof of AI synthesis."
+            "Uncalibrated synthetic-indicator scores provide investigative triage signals to guide expert inspection, not definitive judicial proof of AI synthesis."
         ]
 
         try:
             with Image.open(image_path) as img:
-                # Check for explicit generative metadata in container tags/info
+                # Metadata is a mutable indication only; it is not proof of generation.
                 metadata_ai_found = False
                 meta_source = ""
                 for k, v in getattr(img, "info", {}).items():
