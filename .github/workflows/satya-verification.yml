@@ -25,7 +25,7 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - name: Install backend dependencies
         run: python -m pip install -r requirements.txt
-      - name: Run unit, applicability and integration tests
+      - name: Unit, applicability, API and integration suites
         env:
           PYTHONPATH: .
         run: python -m pytest -q tests
