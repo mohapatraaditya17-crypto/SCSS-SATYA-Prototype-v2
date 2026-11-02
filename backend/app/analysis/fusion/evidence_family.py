@@ -15,7 +15,7 @@ class EvidenceFamilyManager:
     forensic detectors (e.g. noise residual + SRM + wavelet residual + spectral decay)
     into unified evidence families with inter-method correlation discounting.
     """
-    VERSION = "2.0.0"
+    VERSION = "3.0.0-unvalidated"
 
     # Detector-to-Family Mapping
     DETECTOR_FAMILY_MAP = {
@@ -38,16 +38,8 @@ class EvidenceFamilyManager:
     }
 
     # Inter-family independence weights in final assessment
-    FAMILY_WEIGHTS = {
-        EvidenceFamilyType.MANIPULATION.value: 1.0,         # High direct forensic evidence
-        EvidenceFamilyType.PROVENANCE.value: 0.95,          # Strong cryptographic or hardware provenance
-        EvidenceFamilyType.AI_ML.value: 0.85,               # Generative latent traces
-        EvidenceFamilyType.COMPRESSION.value: 0.80,         # Secondary compression / DCT artifacts
-        EvidenceFamilyType.RESIDUAL.value: 0.65,            # Correlated sensor / residual noise (discounted)
-        EvidenceFamilyType.PHYSICAL_CONSISTENCY.value: 0.70,# Optical geometry & lighting
-        EvidenceFamilyType.DOCUMENT_CONTAINER.value: 0.85,  # Structured baseline alignment
-        EvidenceFamilyType.INTEGRITY.value: 0.50,           # Baseline verification, not direct tamper proof
-    }
+    # Family weights are deliberately not used without independent validation.
+    FAMILY_WEIGHTS = {}
 
     @classmethod
     def group_detector_results(
@@ -106,7 +98,7 @@ class EvidenceFamilyManager:
                 family=fam_name,
                 status=fam_status,
                 aggregate_score=round(aggregate_score, 3),
-                weight=cls.FAMILY_WEIGHTS.get(fam_name, 0.75),
+                weight=0.0,
                 member_detectors=[m.detector_name for m in members],
                 findings_summary=summary_str,
             )
