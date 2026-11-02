@@ -51,7 +51,7 @@ def test_version_endpoint():
     response = client.get("/api/version")
     assert response.status_code == 200
     data = response.json()
-    assert data["version"] in ["1.0.0", "2.0.0"]
+    assert data["version"] == settings.VERSION
     assert "methods" in data
     assert "disclaimer" in data
 
