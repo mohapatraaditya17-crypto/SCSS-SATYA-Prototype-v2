@@ -406,7 +406,7 @@ class ForensicPipeline:
         # Technical Assessment from Calibrated Decision Engine
         assessment_obj = canonical_evidence["assessment"]
         decision_assessment = assessment_obj["technical_assessment"]
-        decision_confidence = int(round(assessment_obj.get("confidence", 0.5) * 100))
+        decision_confidence = None if assessment_obj.get("confidence") is None else int(round(assessment_obj["confidence"] * 100))
         evidence_strength = assessment_obj.get("evidence_strength", "NONE")
 
         # Crucial Doctrine: Human Review is ALWAYS required
@@ -422,6 +422,7 @@ class ForensicPipeline:
             "decision_assessment": decision_assessment,
             "evidence_strength": evidence_strength,
             "decision_confidence": decision_confidence,
+            "coverage_score": assessment_obj.get("coverage", {}).get("coverage_score"),
             "canonical_evidence": canonical_evidence,
             "image_characterization": image_char,
             "known_limitations": cls.STANDARD_KNOWN_LIMITATIONS,
