@@ -14,7 +14,7 @@ class CalibratedForensicClassifier:
     MODEL_NAME = "satya-forensic-fusion-ml"
     VERSION = "2.0.0"
 
-    # Pre-calibrated regression coefficients (trained with L2 penalty and Platt scaling)
+    # Experimental hand-configured coefficients; no training or calibration evidence is registered.
     COEFFICIENTS = {
         "copymove_cloned_clusters": 2.45,
         "splicing_clusters": 2.15,
@@ -75,7 +75,7 @@ class CalibratedForensicClassifier:
         return ModelMetadata(
             model_name=cls.MODEL_NAME,
             model_version=cls.VERSION,
-            model_hash="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            model_hash="UNVERIFIED_PLACEHOLDER_EMPTY_FILE_SHA256",
             training_dataset_version="SATYA-FD-2026-V2",
             training_date="2026-10-28T00:00:00Z",
             threshold_profile="production-v2",
