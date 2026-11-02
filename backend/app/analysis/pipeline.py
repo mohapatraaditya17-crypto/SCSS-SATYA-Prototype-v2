@@ -81,19 +81,6 @@ class ForensicPipeline:
             execution_time_ms=0.0,
         )
 
-    @staticmethod
-    def _not_applicable_test(method: str, reason: str) -> ScreeningTestResult:
-        return ScreeningTestResult(
-            method=method,
-            version="2.1.0",
-            status="not_applicable",
-            indicator="test_unavailable",
-            indicator_label="Not applicable",
-            observations=[reason],
-            explanation=reason,
-            limitations=["Applicability is a routing decision, not ground truth."],
-            execution_time_ms=0.0,
-        )
 
     @classmethod
     def execute(
