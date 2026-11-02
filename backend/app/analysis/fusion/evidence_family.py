@@ -82,9 +82,9 @@ class EvidenceFamilyManager:
             if len(pos_members) > 0 and aggregate_score >= 0.60:
                 fam_status = "SUPPORTING_TAMPERING"
                 summary_str = f"{len(pos_members)} detector(s) indicate anomaly (aggregate score {aggregate_score:.2f})."
-            elif len(error_members) > 0 and not pos_members and not neg_members:
+            elif len(error_members) > 0 and not pos_members:
                 fam_status = "ERROR"
-                summary_str = f"{len(error_members)} detector(s) failed; failure is not negative evidence."
+                summary_str = f"{len(error_members)} detector(s) failed and {len(neg_members)} returned no-indicator observations; failure is not negative evidence."
             elif len(neg_members) > 0 and len(pos_members) == 0:
                 fam_status = "NO_INDICATOR_OBSERVED"
                 summary_str = f"{len(neg_members)} detector(s) returned negative screening observations; this does not establish authenticity."
@@ -94,9 +94,6 @@ class EvidenceFamilyManager:
             elif len(pos_members) > 0 and len(neg_members) > 0:
                 fam_status = "CONTRADICTORY"
                 summary_str = f"Mixed observations: {len(pos_members)} positive vs {len(neg_members)} negative."
-            elif len(not_appl_members) == len(members):
-                fam_status = "NOT_APPLICABLE"
-                summary_str = "All family members are not applicable."
             else:
                 fam_status = "INCONCLUSIVE"
                 summary_str = f"{len(inconcl_members)} inconclusive and {len(error_members)} error result(s); errors are not negative evidence."
