@@ -114,7 +114,8 @@ class StorageService:
         hashes = cls.compute_hashes(file_bytes)
 
         # 5. Sanitize filename and defense against path traversal
-        raw_name = Path(original_filename).name
+        normalized_name = (original_filename or "").replace("\\", "/")
+        raw_name = normalized_name.rsplit("/", 1)[-1]
         clean_original_filename = re.sub(r'[\x00-\x1f\x7f]', '', raw_name).strip('. ')
         if not clean_original_filename:
             clean_original_filename = "evidence_specimen.jpg"
