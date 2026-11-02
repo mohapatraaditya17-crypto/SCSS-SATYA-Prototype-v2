@@ -146,20 +146,6 @@ class ForensicPipeline:
             extracted_metadata=extracted_metadata,
         )
 
-        def detector_applicable(detector_id: str) -> bool:
-            return detector_id in image_char.get("applicable_detectors", [])
-
-        def record_inapplicable(detector_id: str, method: str) -> None:
-            reason = image_char.get("inapplicable_detectors", {}).get(detector_id) or "Characterization rules marked this method not applicable."
-            all_tests.append(cls._not_applicable_test(method, reason))
-
-        def detector_applicable(detector_id: str) -> bool:
-            return detector_id in image_char.get("applicable_detectors", [])
-
-        def record_inapplicable(detector_id: str, method: str) -> None:
-            reason = image_char.get("inapplicable_detectors", {}).get(detector_id) or "Characterization rules marked this method not applicable."
-            all_tests.append(cls._not_applicable_test(method, reason))
-
         # 2. Test 2: Dual Cryptographic & Perceptual Hashing (SHA-256, BLAKE3, pHash, dHash, etc.)
         hash_test, _, hash_analytics = HashAnalyzer.analyze(image_path, file_bytes, file_size_bytes)
         all_tests.append(hash_test)
