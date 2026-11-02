@@ -144,7 +144,7 @@ export interface ExaminationOverview {
   overall_assessment: string;
   human_review_status: string;
   // v2 fields
-  decision_assessment?: 'LIKELY_AUTHENTIC' | 'LIKELY_TAMPERED' | 'INCONCLUSIVE' | null;
+  decision_assessment?: DecisionAssessment;
   evidence_strength?: 'STRONG' | 'MODERATE' | 'WEAK' | 'NONE' | 'UNKNOWN' | null;
 }
 
