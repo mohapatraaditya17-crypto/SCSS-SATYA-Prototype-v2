@@ -102,7 +102,8 @@ class EvidenceFamilySummary(BaseModel):
 
 class DecisionEngineOutput(BaseModel):
     final_assessment: str = TechnicalAssessment.INCONCLUSIVE.value
-    decision_confidence: float = 0.50
+    # Reserved for empirically calibrated outputs; null while no calibrator is registered.
+    decision_confidence: Optional[float] = None
     evidence_strength: str = EvidenceStrength.NONE.value
     human_review_required: bool = True
     decisive_observations: List[DecisiveObservation] = Field(default_factory=list)
