@@ -1,6 +1,6 @@
 # Forensic Decision and Validation Guardrails
 
-**Status:** Engineering and validation requirements  
+**Status:** Engineering requirements and partial implementation notes (v2.1 branch)  
 **Scope:** SCSS SATYA forensic image authenticity screening pipeline  
 **Audience:** Developers, forensic examiners, validation owners
 
@@ -234,4 +234,4 @@ Before making forensic performance claims or promoting a release:
 
 ## 13. Implementation note
 
-This document specifies engineering and validation guardrails. It does not claim that these controls are already implemented, that historical metrics establish detector accuracy, or that the platform is certified for evidentiary use. Implementation status must be verified against code, tests, deployment configuration, and independent validation artifacts.
+This document specifies engineering and validation guardrails. The v2.1 remediation branch implements only the controls explicitly described in its change log and tests. It does not establish detector accuracy, empirical calibration, independent validation, or certification for evidentiary use. Review the branch diff and test results before treating any control as complete.
