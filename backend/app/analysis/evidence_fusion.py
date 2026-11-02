@@ -174,9 +174,9 @@ class EvidenceFusionEngine:
         if ai_declared:
             q3_generation = "Generative AI: Explicitly Declared in C2PA Provenance Manifest"
             generation_code = "AI_DECLARED"
-        elif any("ai_generative" in d.detector for d in decision_output.decisive_observations):
-            q3_generation = "Generative AI: High Probability of Latent Diffusion / GAN Synthesis"
-            generation_code = "AI_GENERATED"
+        elif decision_output.final_assessment == "AI_GENERATION_INDICATORS_DETECTED":
+            q3_generation = "Statistical synthetic-generation indicators observed; origin is unverified"
+            generation_code = "AI_GENERATION_INDICATORS_ONLY"
         elif is_screen_capture:
             q3_generation = "Human Interaction: Direct Operating System Interface Render"
             generation_code = "SCREEN_RENDER"
