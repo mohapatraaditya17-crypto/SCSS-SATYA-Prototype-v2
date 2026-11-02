@@ -81,6 +81,20 @@ class ForensicPipeline:
             execution_time_ms=0.0,
         )
 
+    @staticmethod
+    def _not_applicable_test(method: str, reason: str) -> ScreeningTestResult:
+        return ScreeningTestResult(
+            method=method,
+            version="2.1.0",
+            status="not_applicable",
+            indicator="test_unavailable",
+            indicator_label="Not applicable",
+            observations=[reason],
+            explanation=reason,
+            limitations=["Applicability is a routing decision, not ground truth."],
+            execution_time_ms=0.0,
+        )
+
     @classmethod
     def execute(
         cls,
@@ -131,6 +145,13 @@ class ForensicPipeline:
             image_height=image_height,
             extracted_metadata=extracted_metadata,
         )
+
+        def detector_applicable(detector_id: str) -> bool:
+            return detector_id in image_char.get("applicable_detectors", [])
+
+        def record_inapplicable(detector_id: str, method: str) -> None:
+            reason = image_char.get("inapplicable_detectors", {}).get(detector_id) or "Characterization rules marked this method not applicable."
+            all_tests.append(cls._not_applicable_test(method, reason))
 
         def detector_applicable(detector_id: str) -> bool:
             return detector_id in image_char.get("applicable_detectors", [])
