@@ -43,7 +43,7 @@ class ForensicPipeline:
       5. Calibrated Multi-Evidence Decision Engine
       6. Composite Forensic Heatmap Fusion
     """
-    PIPELINE_VERSION = "2026.2-v2"
+    PIPELINE_VERSION = "2026.3-v2.1"
 
     STANDARD_SUGGESTED_MANUAL_CHECKS: List[str] = [
         "Inspect original hardware or source storage device directly where possible (camera SD card, mobile device bitstream acquisition).",
@@ -66,6 +66,20 @@ class ForensicPipeline:
         "Screenshots and flat UI graphics naturally lack optical sensor noise and camera EXIF records.",
         "C2PA provenance manifests require unbroken cryptographic chains; file format conversions drop external manifest bindings.",
     ]
+
+    @staticmethod
+    def _not_applicable_test(method: str, reason: str) -> ScreeningTestResult:
+        return ScreeningTestResult(
+            method=method,
+            version="2.1.0",
+            status="not_applicable",
+            indicator="test_unavailable",
+            indicator_label="Not applicable",
+            observations=[reason],
+            explanation=reason,
+            limitations=["Applicability is a routing decision, not ground truth."],
+            execution_time_ms=0.0,
+        )
 
     @classmethod
     def execute(
@@ -118,6 +132,13 @@ class ForensicPipeline:
             extracted_metadata=extracted_metadata,
         )
 
+        def detector_applicable(detector_id: str) -> bool:
+            return detector_id in image_char.get("applicable_detectors", [])
+
+        def record_inapplicable(detector_id: str, method: str) -> None:
+            reason = image_char.get("inapplicable_detectors", {}).get(detector_id) or "Characterization rules marked this method not applicable."
+            all_tests.append(cls._not_applicable_test(method, reason))
+
         # 2. Test 2: Dual Cryptographic & Perceptual Hashing (SHA-256, BLAKE3, pHash, dHash, etc.)
         hash_test, _, hash_analytics = HashAnalyzer.analyze(image_path, file_bytes, file_size_bytes)
         all_tests.append(hash_test)
@@ -150,14 +171,22 @@ class ForensicPipeline:
         all_artifacts["document_analytics"] = doc_analytics
 
         # 5. Test 5: JPEG Quantization (DQT) & Double-Compression Analysis
-        jpeg_test, jpeg_analytics = JPEGQuantizationAnalyzer.analyze(file_bytes, media_type)
-        all_tests.append(jpeg_test)
+        if detector_applicable("jpeg_quantization_analysis"):
+            jpeg_test, jpeg_analytics = JPEGQuantizationAnalyzer.analyze(file_bytes, media_type)
+            all_tests.append(jpeg_test)
+        else:
+            jpeg_analytics = {"applicable": False, "reason": image_char.get("inapplicable_detectors", {}).get("jpeg_quantization_analysis")}
+            record_inapplicable("jpeg_quantization_analysis", "JPEG Quantization Analysis")
         all_artifacts["jpeg_analytics"] = jpeg_analytics
 
         # 6. Test 6: Error Level Analysis (ELA - JPEG DCT Compression Grids)
-        ela_test, ela_artifacts = ELAAnalyzer.analyze(image_path, examination_id, media_type)
-        all_tests.append(ela_test)
-        all_artifacts.update(ela_artifacts)
+        if detector_applicable("error_level_analysis"):
+            ela_test, ela_artifacts = ELAAnalyzer.analyze(image_path, examination_id, media_type)
+            all_tests.append(ela_test)
+            all_artifacts.update(ela_artifacts)
+        else:
+            ela_artifacts = {}
+            record_inapplicable("error_level_analysis", "Error Level Analysis")
 
         # 7. Test 7: Image Consistency & Channel Analytics
         consistency_test, consistency_artifacts, consistency_analytics = ConsistencyAnalyzer.analyze(
@@ -219,19 +248,22 @@ class ForensicPipeline:
             all_detector_results.append(ai_det_res)
 
         # 12. Test 12: Document Typography & Character Alignment Engine (SATYA v2)
-        typo_out = TypographyAnalyzer.analyze(
-            image_path, examination_id, media_type, image_characterization=image_char
-        )
-        typo_test = typo_out[0]
-        typo_artifacts = typo_out[1]
-        typo_analytics = typo_out[2]
-        typo_det_res = typo_out[3] if len(typo_out) > 3 else None
-        all_tests.append(typo_test)
-        all_artifacts.update(typo_artifacts)
-        if typo_analytics:
-            all_artifacts["typography_analytics"] = typo_analytics
-        if typo_det_res:
-            all_detector_results.append(typo_det_res)
+        if detector_applicable("document_typography_and_alignment"):
+            typo_out = TypographyAnalyzer.analyze(
+                image_path, examination_id, media_type, image_characterization=image_char
+            )
+            typo_test = typo_out[0]
+            typo_artifacts = typo_out[1]
+            typo_analytics = typo_out[2]
+            typo_det_res = typo_out[3] if len(typo_out) > 3 else None
+            all_tests.append(typo_test)
+            all_artifacts.update(typo_artifacts)
+            if typo_analytics:
+                all_artifacts["typography_analytics"] = typo_analytics
+            if typo_det_res:
+                all_detector_results.append(typo_det_res)
+        else:
+            record_inapplicable("document_typography_and_alignment", "Document Typography & Character Alignment")
 
         # 13. Test 13: SRM Spatial Rich Model & Wavelet Residual Analysis
         srm_test, _, srm_analytics = SRMWaveletAnalyzer.analyze(
@@ -257,12 +289,16 @@ class ForensicPipeline:
             all_detector_results.append(splice_det_res)
 
         # 15. Test 15: Illumination Direction & Geometric Consistency
-        lighting_test, _, lighting_analytics = LightingConsistencyAnalyzer.analyze(
-            image_path, examination_id, media_type
-        )
-        all_tests.append(lighting_test)
-        if lighting_analytics:
-            all_artifacts["lighting_analytics"] = lighting_analytics
+        if detector_applicable("lighting_consistency_analysis"):
+            lighting_test, _, lighting_analytics = LightingConsistencyAnalyzer.analyze(
+                image_path, examination_id, media_type
+            )
+            all_tests.append(lighting_test)
+            if lighting_analytics:
+                all_artifacts["lighting_analytics"] = lighting_analytics
+        else:
+            lighting_analytics = {"applicable": False, "reason": image_char.get("inapplicable_detectors", {}).get("lighting_consistency_analysis")}
+            record_inapplicable("lighting_consistency_analysis", "Illumination Direction & Geometric Consistency")
 
         # Build complete DetectorResult list for all 15 tests
         already_added = {d.detector_name for d in all_detector_results}
@@ -278,8 +314,8 @@ class ForensicPipeline:
                 elif t.indicator == "no_indicator_detected":
                     status_str = DetectorStatus.NEGATIVE.value
 
-                score = t.score if t.score is not None else (0.85 if status_str == DetectorStatus.POSITIVE.value else 0.05)
-                conf = t.confidence if t.confidence is not None else 0.80
+                score = t.score
+                conf = t.confidence
                 all_detector_results.append(
                     DetectorResult(
                         detector_name=t.method,
@@ -287,7 +323,7 @@ class ForensicPipeline:
                         status=status_str,
                         score=score,
                         confidence=conf,
-                        evidence_strength=t.evidence_strength or ("STRONG" if score > 0.70 else ("MODERATE" if score > 0.40 else "NONE")),
+                        evidence_strength=t.evidence_strength or (EvidenceStrength.NONE.value if score is None else ("STRONG" if score > 0.70 else ("MODERATE" if score > 0.40 else "NONE"))),
                         applicable=t.status != "not_applicable",
                         technical_reason=t.explanation,
                         affected_regions=t.affected_regions or [],
