@@ -141,7 +141,7 @@ class EvidenceFusionEngine:
             q1_origin = f"Digital Document Structure ({document_analytics.get('document_type').upper()})"
             origin_code = "DOCUMENT_CONTAINER"
         elif ai_declared or any(d.detector == "ai_generative_classifier" for d in decision_output.decisive_observations):
-            q1_origin = "Algorithmic Latent Diffusion / Neural Decoder Synthesis"
+            q1_origin = "Statistical or declared synthetic-generation indicators; origin is not independently verified"
             origin_code = "AI_LATENT_SYNTHESIS"
         else:
             q1_origin = "Unknown Digital Source (Metadata Stripped or Web Exported)"
@@ -152,13 +152,13 @@ class EvidenceFusionEngine:
         splice_decisive = any("splicing" in d.detector for d in decision_output.decisive_observations)
 
         if copymove_decisive:
-            q2_integrity = "Locally Tampered: Coherent Cloned / Duplicated Content Verified"
+            q2_integrity = "Copy-move screening indicator: coherent cloned / duplicated content suspected; examiner verification required"
             integrity_code = "LOCALLY_ALTERED_CLONED"
         elif splice_decisive:
-            q2_integrity = "Locally Spliced: Multi-Source Composite Boundary Discontinuity Detected"
+            q2_integrity = "Splicing screening indicator: multi-source composite boundary discontinuity suspected; examiner verification required"
             integrity_code = "LOCALLY_SPLICED"
-        elif decision_output.final_assessment == "LIKELY_TAMPERED":
-            q2_integrity = "Locally Altered: Converging Multi-Evidence Forensic Anomalies"
+        elif decision_output.final_assessment == "MANIPULATION_INDICATORS_DETECTED":
+            q2_integrity = "Manipulation indicators reported by multiple screening methods; examiner verification required"
             integrity_code = "LOCALLY_ALTERED"
         elif c2pa_present and signature_valid and not ai_declared:
             q2_integrity = "C2PA signature validation succeeded for the supplied manifest; claim scope requires examiner review"
