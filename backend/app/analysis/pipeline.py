@@ -344,6 +344,8 @@ class ForensicPipeline:
                         status=status_str,
                         score=score,
                         confidence=conf,
+                        raw_score=score,
+                        calibrated_probability=None,
                         evidence_strength=t.evidence_strength or (EvidenceStrength.NONE.value if score is None else ("STRONG" if score > 0.70 else ("MODERATE" if score > 0.40 else "NONE"))),
                         applicable=t.status != "not_applicable",
                         technical_reason=t.explanation,
