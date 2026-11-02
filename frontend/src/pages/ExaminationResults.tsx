@@ -284,9 +284,9 @@ export const ExaminationResults: React.FC = () => {
       {/* 2. v2 Decision Assessment Panel */}
       {decisionAssessment && (
         <div className={`rounded-xl border-2 shadow-xs p-5 ${
-          decisionAssessment === 'LIKELY_TAMPERED'
+          decisionAssessment === 'LIKELY_TAMPERED' || decisionAssessment === 'MANIPULATION_INDICATORS_DETECTED' || decisionAssessment === 'PROVENANCE_CONFLICT'
             ? 'bg-rose-50 border-rose-300'
-            : decisionAssessment === 'LIKELY_AUTHENTIC'
+            : decisionAssessment === 'LIKELY_AUTHENTIC' || decisionAssessment === 'PROVENANCE_VERIFIED' || decisionAssessment === 'NO_MANIPULATION_INDICATORS_DETECTED'
             ? 'bg-emerald-50 border-emerald-300'
             : 'bg-amber-50 border-amber-300'
         }`}>
@@ -313,8 +313,15 @@ export const ExaminationResults: React.FC = () => {
                   decisionAssessment === 'LIKELY_TAMPERED' ? 'text-rose-700' :
                   decisionAssessment === 'LIKELY_AUTHENTIC' ? 'text-emerald-700' : 'text-amber-700'
                 }`}>
-                  {decisionAssessment === 'LIKELY_TAMPERED' && 'LIKELY TAMPERED'}
-                  {decisionAssessment === 'LIKELY_AUTHENTIC' && 'LIKELY AUTHENTIC'}
+                  {(decisionAssessment === 'LIKELY_TAMPERED' || decisionAssessment === 'MANIPULATION_INDICATORS_DETECTED') && 'MANIPULATION INDICATORS DETECTED'}
+                  {decisionAssessment === 'LIKELY_AUTHENTIC' && 'LEGACY: LIKELY AUTHENTIC'}
+                  {decisionAssessment === 'PROVENANCE_VERIFIED' && 'PROVENANCE VERIFIED — Scope and claims require examiner review'}
+                  {decisionAssessment === 'PROVENANCE_CONFLICT' && 'PROVENANCE CONFLICT — Requires Expert Review'}
+                  {decisionAssessment === 'NO_MANIPULATION_INDICATORS_DETECTED' && 'NO MANIPULATION INDICATORS DETECTED — Not proof of authenticity'}
+                  {decisionAssessment === 'AI_GENERATION_INDICATORS_DETECTED' && 'AI-GENERATION INDICATORS DETECTED — Heuristic screening only'}
+                  {decisionAssessment === 'INSUFFICIENT_EVIDENCE' && 'INSUFFICIENT EVIDENCE — Detector coverage is limited'}
+                  {decisionAssessment === 'UNSUPPORTED_FORMAT' && 'UNSUPPORTED FORMAT'}
+                  {decisionAssessment === 'ERROR' && 'ANALYSIS ERROR'}
                   {decisionAssessment === 'INCONCLUSIVE' && 'INCONCLUSIVE — Requires Expert Review'}
                 </div>
               </div>
