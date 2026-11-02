@@ -13,7 +13,7 @@ from typing import Any
 
 import httpx
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 SAMPLES = ROOT / "Samples"
 BASE_URL = "http://127.0.0.1:8000"
 PAIRS = [
