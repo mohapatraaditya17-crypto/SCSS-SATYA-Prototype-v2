@@ -101,16 +101,12 @@ class ForensicDecisionEngine:
         )
 
         if errors and not executed_count:
-            assessment = TechnicalAssessment.ERROR.value
+            assessment = TechnicalAssessment.INSUFFICIENT_EVIDENCE.value
             strength = EvidenceStrength.NONE.value
             rationale = (
                 "No applicable detector completed successfully. "
-                "The screening result is an execution error and requires review."
+                "Analysis errors prevented a usable screening interpretation."
             )
-        elif errors and executed_count == 0:
-            assessment = TechnicalAssessment.ERROR.value
-            strength = EvidenceStrength.NONE.value
-            rationale = "Analysis errors prevented a usable screening result."
         elif has_provenance_conflict:
             assessment = TechnicalAssessment.PROVENANCE_CONFLICT.value
             strength = EvidenceStrength.LOW.value
@@ -165,7 +161,7 @@ class ForensicDecisionEngine:
             strength = EvidenceStrength.NONE.value
             rationale = (
                 "No manipulation indicators were detected by the applicable methods. "
-                "This is not proof of authenticity or an unaltered source."
+                "This does not establish authenticity or prove the source is unaltered."
             )
 
         if errors:
