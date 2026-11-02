@@ -23,7 +23,7 @@ def test_characterize_jpeg_photo(tmp_path):
     )
 
     assert char["format"] == "JPEG"
-    assert char["image_class"] == "PHOTOGRAPH"
+    assert char["image_class"] == "CAMERA_METADATA_PRESENT"
     assert char["has_camera_exif"] is True
     assert "error_level_analysis" in char["applicable_detectors"]
     assert "jpeg_quantization_analysis" in char["applicable_detectors"]
