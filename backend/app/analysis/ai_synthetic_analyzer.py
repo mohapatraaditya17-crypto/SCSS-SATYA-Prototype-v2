@@ -220,7 +220,7 @@ class AISyntheticAnalyzer:
                 # Heuristic screening decision; not a calibrated probability.
                 if synthetic_score >= 0.75:
                     indicator = "indicator_detected"
-                    indicator_label = f"AI Generative / Synthetic Traces Detected ({synthetic_pct}%)"
+                    indicator_label = f"Statistical Synthetic Indicators Observed ({synthetic_pct}%)"
                     norm_status = DetectorStatus.POSITIVE.value
                     confidence = None
                     strength = EvidenceStrength.STRONG.value
@@ -232,7 +232,7 @@ class AISyntheticAnalyzer:
                     )
                 elif synthetic_score >= 0.45:
                     indicator = "inconclusive"
-                    indicator_label = f"Inconclusive / Mixed Indicators ({synthetic_pct}%)"
+                    indicator_label = f"Inconclusive Statistical Synthetic Indicators ({synthetic_pct}%)"
                     norm_status = DetectorStatus.INCONCLUSIVE.value
                     confidence = None
                     strength = EvidenceStrength.LOW.value
@@ -243,14 +243,14 @@ class AISyntheticAnalyzer:
                     )
                 else:
                     indicator = "no_indicator_detected"
-                    indicator_label = f"No AI Generative Traces Detected ({synthetic_pct}%)"
+                    indicator_label = f"No Statistical Synthetic Indicator Above Threshold ({synthetic_pct}%)"
                     norm_status = DetectorStatus.NEGATIVE.value
                     confidence = None
                     strength = EvidenceStrength.NONE.value
                     explanation = (
                         f"Low synthetic likelihood index ({synthetic_pct}%). "
                         f"Radial spectral decay (alpha={spectral_slope:.2f}) and noise residual correlations conform to standard "
-                        "natural optical capture or regular unmanipulated digital graphics. No generative AI lattice signatures identified."
+                        "reference patterns used by this heuristic. No synthetic indicator crossed the configured screening threshold; AI origin is not excluded."
                     )
 
         except Exception as e:
@@ -295,6 +295,8 @@ class AISyntheticAnalyzer:
             confidence=None,
             raw_score=round(synthetic_score, 3),
             calibrated_probability=None,
+            raw_score=round(synthetic_score, 3),
+            calibrated_probability=None,
             evidence_strength=strength,
             normalized_status=norm_status,
             affected_regions=affected_regions,
@@ -304,7 +306,7 @@ class AISyntheticAnalyzer:
             detector_version=cls.VERSION,
             status=norm_status,
             score=round(synthetic_score, 3),
-            confidence=round(confidence, 3),
+            confidence=None,
             evidence_strength=strength,
             applicable=True,
             technical_reason=explanation,
