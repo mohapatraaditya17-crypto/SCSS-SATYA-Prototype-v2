@@ -44,7 +44,6 @@ class TechnicalAssessment(str, Enum):
     LIKELY_TAMPERED = "LIKELY_TAMPERED"    # deprecated; no longer emitted
     UNSUPPORTED_FORMAT = "UNSUPPORTED_FORMAT"
     ERROR = "ERROR"
-    INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
 
 
 class FileIntegrityInfo(BaseModel):
