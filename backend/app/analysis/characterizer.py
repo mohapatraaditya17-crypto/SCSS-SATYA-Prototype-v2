@@ -128,9 +128,9 @@ class ImageCharacterizer:
         elif is_screenshot_name or (is_screen_resolution and not has_camera_exif and is_png):
             image_class = "SCREENSHOT"
         elif has_camera_exif:
-            # Make/model tags are mutable metadata and do not prove optical capture.
-            # Keep classification conservative unless independent visual/structural cues apply.
-            image_class = "UNKNOWN"
+            # EXIF is mutable metadata. Preserve a neutral candidate label without
+            # asserting that the specimen is an optical photograph.
+            image_class = "CAMERA_METADATA_PRESENT"
         elif is_flat_graphic:
             image_class = "GRAPHIC"
         elif is_ai_software or (is_ai_res and not has_camera_exif):
