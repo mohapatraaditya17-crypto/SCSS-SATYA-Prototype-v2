@@ -183,7 +183,7 @@ async def create_examination(
         exam.overall_assessment = pipeline_output["overall_assessment"]
         exam.decision_assessment = pipeline_output.get("decision_assessment", "INCONCLUSIVE")
         exam.evidence_strength = pipeline_output.get("evidence_strength", "NONE")
-        exam.decision_confidence = pipeline_output.get("decision_confidence", 50)
+        exam.decision_confidence = pipeline_output.get("decision_confidence")
         exam.capture_timestamp = pipeline_output["capture_timestamp"]
         exam.extracted_metadata = pipeline_output["extracted_metadata"]
         exam.test_results = [t.model_dump() for t in pipeline_output["tests"]]
