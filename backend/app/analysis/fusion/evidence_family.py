@@ -37,17 +37,9 @@ class EvidenceFamilyManager:
         "image_consistency_checks": EvidenceFamilyType.INTEGRITY.value,
     }
 
-    # Inter-family independence weights in final assessment
-    FAMILY_WEIGHTS = {
-        EvidenceFamilyType.MANIPULATION.value: 1.0,         # High direct forensic evidence
-        EvidenceFamilyType.PROVENANCE.value: 0.95,          # Strong cryptographic or hardware provenance
-        EvidenceFamilyType.AI_ML.value: 0.85,               # Generative latent traces
-        EvidenceFamilyType.COMPRESSION.value: 0.80,         # Secondary compression / DCT artifacts
-        EvidenceFamilyType.RESIDUAL.value: 0.65,            # Correlated sensor / residual noise (discounted)
-        EvidenceFamilyType.PHYSICAL_CONSISTENCY.value: 0.70,# Optical geometry & lighting
-        EvidenceFamilyType.DOCUMENT_CONTAINER.value: 0.85,  # Structured baseline alignment
-        EvidenceFamilyType.INTEGRITY.value: 0.50,           # Baseline verification, not direct tamper proof
-    }
+    # Reliability weights are intentionally disabled until estimated and
+    # validated on an independent representative dataset.
+    FAMILY_WEIGHTS = {}
 
     @classmethod
     def group_detector_results(
@@ -71,12 +63,13 @@ class EvidenceFamilyManager:
             neg_members = [m for m in members if m.status == DetectorStatus.NEGATIVE.value]
             inconcl_members = [m for m in members if m.status == DetectorStatus.INCONCLUSIVE.value]
             not_appl_members = [m for m in members if m.status == DetectorStatus.NOT_APPLICABLE.value]
+            error_members = [m for m in members if m.status == DetectorStatus.ERROR.value]
 
             # Correlation Discounting for Residual Family:
             # If multiple residual detectors trigger, their aggregate score is computed
             # using bounded diminishing returns: S_agg = max(scores) + 0.3 * second_highest
             # to strictly prevent treating them as 3 independent witnesses!
-            scores = sorted([m.score for m in pos_members], reverse=True)
+            scores = sorted([m.score for m in pos_members if m.score is not None], reverse=True)
             if not scores:
                 aggregate_score = 0.05
             elif len(scores) == 1:
@@ -89,9 +82,12 @@ class EvidenceFamilyManager:
             if len(pos_members) > 0 and aggregate_score >= 0.60:
                 fam_status = "SUPPORTING_TAMPERING"
                 summary_str = f"{len(pos_members)} detector(s) indicate anomaly (aggregate score {aggregate_score:.2f})."
+            elif len(error_members) > 0 and not pos_members and not neg_members:
+                fam_status = "ERROR"
+                summary_str = f"{len(error_members)} detector(s) failed; failure is not negative evidence."
             elif len(neg_members) > 0 and len(pos_members) == 0:
-                fam_status = "SUPPORTING_AUTHENTIC"
-                summary_str = f"{len(neg_members)} detector(s) observed normal distribution; no indicators found."
+                fam_status = "NO_INDICATOR_OBSERVED"
+                summary_str = f"{len(neg_members)} detector(s) returned negative screening observations; this does not establish authenticity."
             elif len(not_appl_members) == len(members):
                 fam_status = "NOT_APPLICABLE"
                 summary_str = "All member detectors determined not applicable for specimen class."
@@ -106,7 +102,7 @@ class EvidenceFamilyManager:
                 family=fam_name,
                 status=fam_status,
                 aggregate_score=round(aggregate_score, 3),
-                weight=cls.FAMILY_WEIGHTS.get(fam_name, 0.75),
+                weight=1.0,
                 member_detectors=[m.detector_name for m in members],
                 findings_summary=summary_str,
             )
