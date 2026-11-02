@@ -10,9 +10,9 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "SCSS SATYA prototype v2"
     PROJECT_FULL_NAME: str = "SCSS SATYA prototype v2 — Forensic Image Analysis & Evidence Fusion Platform"
     TAGLINE: str = "Forensic-led digital image authenticity screening & multi-evidence fusion platform"
-    VERSION: str = "2.0.0"
-    PIPELINE_VERSION: str = "2026.2-v2"
-    RULES_VERSION: str = "2026.2-v2"
+    VERSION: str = "2.1.0-unvalidated"
+    PIPELINE_VERSION: str = "2026.3-v2.1-unvalidated"
+    RULES_VERSION: str = "2026.3-v2.1-unvalidated"
     THRESHOLD_PROFILE: str = "production-v2"
     ORGANIZATION: str = "Sure Clue Scientific Solutions (SCSS)"
     CORE_PRINCIPLE: str = "The tool screens. The expert decides."
@@ -49,21 +49,21 @@ class Settings(BaseSettings):
 
     # Method Names and Versions
     METHOD_VERSIONS: Dict[str, str] = {
-        "metadata_examination": "2.0.0",
-        "cryptographic_and_perceptual_hashing": "2.0.0",
-        "c2pa_provenance": "2.0.0",
-        "document_forensics": "2.0.0",
-        "jpeg_quantization_analysis": "2.0.0",
-        "error_level_analysis": "2.0.0",
-        "image_consistency_checks": "2.0.0",
-        "noise_residual_analysis": "2.0.0",
-        "fourier_spectral_analysis": "2.0.0",
-        "copy_move_forgery_detection": "2.0.0",
-        "ai_generative_classifier": "2.0.0",
-        "document_typography_and_alignment": "2.0.0",
-        "srm_wavelet_analysis": "2.0.0",
-        "image_splicing_detector": "2.0.0",
-        "lighting_consistency_analysis": "2.0.0",
+        "metadata_examination": "2.1.0-unvalidated",
+        "cryptographic_and_perceptual_hashing": "2.1.0-unvalidated",
+        "c2pa_provenance": "2.1.0-unvalidated",
+        "document_forensics": "2.1.0-unvalidated",
+        "jpeg_quantization_analysis": "2.1.0-unvalidated",
+        "error_level_analysis": "2.1.0-unvalidated",
+        "image_consistency_checks": "2.1.0-unvalidated",
+        "noise_residual_analysis": "2.1.0-unvalidated",
+        "fourier_spectral_analysis": "2.1.0-unvalidated",
+        "copy_move_forgery_detection": "2.1.0-unvalidated",
+        "ai_generative_classifier": "2.1.0-unvalidated",
+        "document_typography_and_alignment": "2.1.0-unvalidated",
+        "srm_wavelet_analysis": "2.1.0-unvalidated",
+        "image_splicing_detector": "2.1.0-unvalidated",
+        "lighting_consistency_analysis": "2.1.0-unvalidated",
     }
 
     # CORS Allowed Origins
