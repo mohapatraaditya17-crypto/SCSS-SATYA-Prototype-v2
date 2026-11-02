@@ -341,7 +341,7 @@ export const ExaminationResults: React.FC = () => {
               )}
               {decisionConfidence !== null && decisionConfidence !== undefined && (
                 <span className="inline-flex items-center text-xs font-mono font-semibold px-2.5 py-1 rounded-full bg-white border border-slate-200 text-slate-700">
-                  {(decisionConfidence * 100).toFixed(0)}% confidence
+                  {decisionConfidence.toFixed(0)}% confidence
                 </span>
               )}
               {imageClass && (
