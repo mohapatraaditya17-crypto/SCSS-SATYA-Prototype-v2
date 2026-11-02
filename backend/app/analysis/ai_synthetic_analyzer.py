@@ -169,27 +169,27 @@ class AISyntheticAnalyzer:
                     )
 
                 # 5. Synthesize an uncalibrated statistical heuristic score.
-                # Container strings are mutable metadata and are not independently verified.
+                # Metadata is recorded as context only; the score always derives from image features.
                 if metadata_ai_found:
                     observations.append(f"Unverified AI-related metadata string observed: {meta_source}")
-                    if cross_channel_corr > 0.95:
-                        c_score = 0.60 + 0.35 * ((cross_channel_corr - 0.95) / 0.05)
-                    elif cross_channel_corr > 0.88:
-                        c_score = 0.40 + 0.20 * ((cross_channel_corr - 0.88) / 0.07)
-                    elif cross_channel_corr > 0.70:
-                        c_score = 0.15 + 0.25 * ((cross_channel_corr - 0.70) / 0.18)
-                    else:
-                        c_score = max(0.02, cross_channel_corr * 0.15)
 
-                    slope_dev = abs(spectral_slope - 2.05)
-                    s_score = min(0.35, max(0.0, (slope_dev - 0.35) * 0.5)) if slope_dev > 0.35 else 0.0
-                    a_score = min(0.30, max(0.0, (spatial_autocorr - 0.25) * 0.8)) if spatial_autocorr > 0.25 else 0.0
-                    p_score = 0.25 if hf_peak_count > 2500 and hf_peak_density > 0.4 else (0.10 if hf_peak_count > 1000 else 0.0)
-                    k_score = min(0.15, max(0.0, (patch_kurtosis - 5.0) * 0.02)) if patch_kurtosis > 5.0 else 0.0
+                if cross_channel_corr > 0.95:
+                    c_score = 0.60 + 0.35 * ((cross_channel_corr - 0.95) / 0.05)
+                elif cross_channel_corr > 0.88:
+                    c_score = 0.40 + 0.20 * ((cross_channel_corr - 0.88) / 0.07)
+                elif cross_channel_corr > 0.70:
+                    c_score = 0.15 + 0.25 * ((cross_channel_corr - 0.70) / 0.18)
+                else:
+                    c_score = max(0.02, cross_channel_corr * 0.15)
 
-                    raw_score = 0.45 * c_score + 0.20 * s_score + 0.15 * a_score + 0.12 * p_score + 0.08 * k_score
-                    synthetic_score = min(0.96, max(0.04, raw_score * 1.5))
+                slope_dev = abs(spectral_slope - 2.05)
+                s_score = min(0.35, max(0.0, (slope_dev - 0.35) * 0.5)) if slope_dev > 0.35 else 0.0
+                a_score = min(0.30, max(0.0, (spatial_autocorr - 0.25) * 0.8)) if spatial_autocorr > 0.25 else 0.0
+                p_score = 0.25 if hf_peak_count > 2500 and hf_peak_density > 0.4 else (0.10 if hf_peak_count > 1000 else 0.0)
+                k_score = min(0.15, max(0.0, (patch_kurtosis - 5.0) * 0.02)) if patch_kurtosis > 5.0 else 0.0
 
+                raw_score = 0.45 * c_score + 0.20 * s_score + 0.15 * a_score + 0.12 * p_score + 0.08 * k_score
+                synthetic_score = min(0.96, max(0.04, raw_score * 1.5))
                 synthetic_pct = round(float(synthetic_score * 100.0), 1)
 
                 analytics["raw_heuristic_score_percent"] = synthetic_pct
