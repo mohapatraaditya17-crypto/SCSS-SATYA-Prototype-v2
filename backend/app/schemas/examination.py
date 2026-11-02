@@ -67,7 +67,7 @@ class EvidenceRegion(BaseModel):
 class DecisiveObservation(BaseModel):
     detector: str
     finding: str
-    confidence: float
+    confidence: Optional[float] = None
     region: Optional[EvidenceRegion] = None
 
 
