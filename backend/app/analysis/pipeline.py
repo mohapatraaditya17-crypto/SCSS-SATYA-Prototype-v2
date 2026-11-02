@@ -107,7 +107,6 @@ class ForensicPipeline:
         meta_res = MetadataAnalyzer.analyze(file_bytes, image_width, image_height, media_type)
         all_tests.append(meta_res["test_result"])
         extracted_metadata = meta_res["extracted_metadata"]
-        # 1. Test 1: Metadata & Deep Structural Chunk Forensics
 
         # Parse capture timestamp
         capture_timestamp = None
