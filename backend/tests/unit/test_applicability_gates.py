@@ -75,6 +75,7 @@ def _install_analyzer_stubs(monkeypatch, disabled: str | None):
         "lighting_consistency_analysis": "LightingConsistencyAnalyzer",
     }
     calls = {}
+    calls = {}
     for analyzer_name, response in responses.items():
         analyzer = getattr(pipeline_module, analyzer_name)
         detector_id = next((key for key, name in detector_to_analyzer.items() if name == analyzer_name), None)
@@ -85,6 +86,23 @@ def _install_analyzer_stubs(monkeypatch, disabled: str | None):
         monkeypatch.setattr(analyzer, "analyze", fn)
         calls[analyzer_name] = fn
 
+    # Core and non-gated methods are deterministic, well-formed test outputs.
+    monkeypatch.setattr(
+        pipeline_module.MetadataAnalyzer,
+        "analyze",
+        Mock(return_value={"test_result": _test("metadata_examination"), "extracted_metadata": {}}),
+    )
+    monkeypatch.setattr(
+        pipeline_module.HashAnalyzer,
+        "analyze",
+        Mock(return_value=(_test("cryptographic_and_perceptual_hashing"), None,
+                           {"cryptographic": {}, "perceptual": {}})),
+    )
+    monkeypatch.setattr(
+        pipeline_module.C2PAAnalyzer,
+        "analyze",
+        Mock(return_value=(_test("c2pa_provenance"), {})),
+    )
     monkeypatch.setattr(
         pipeline_module.MetadataAnalyzer,
         "analyze",
