@@ -318,3 +318,36 @@ def test_frontend_spa_serving():
     assert res.status_code == 200
     assert "text/html" in res.headers["content-type"]
     assert b"<!doctype html>" in res.content.lower() or b"<html>" in res.content.lower()
+
+# 15. Nullable confidence and v2 taxonomy API contract
+def test_api_exposes_nullable_confidence_and_current_decision_taxonomy():
+    raw_bytes = generate_test_jpeg()
+    created = client.post(
+        "/api/examinations",
+        files={"file": ("contract_case.jpg", raw_bytes, "image/jpeg")},
+    )
+    assert created.status_code == 201
+    data = created.json()
+
+    assert data["decision_assessment"] in {
+        "MANIPULATION_INDICATORS_DETECTED",
+        "AI_GENERATION_INDICATORS_DETECTED",
+        "PROVENANCE_VERIFIED",
+        "PROVENANCE_CONFLICT",
+        "NO_MANIPULATION_INDICATORS_DETECTED",
+        "INCONCLUSIVE",
+        "INSUFFICIENT_EVIDENCE",
+        "UNSUPPORTED_FORMAT",
+        "ERROR",
+    }
+    # No calibrator is registered: the API must preserve null, not fabricate 50.
+    assert data["decision_confidence"] is None
+
+    detail = client.get(f"/api/examinations/{data['examination_id']}")
+    assert detail.status_code == 200
+    assert detail.json()["decision_confidence"] is None
+
+    history = client.get("/api/examinations?limit=10")
+    assert history.status_code == 200
+    matching = next(item for item in history.json() if item["examination_id"] == data["examination_id"])
+    assert matching["decision_confidence"] is None
