@@ -182,6 +182,7 @@ class ExaminationOverview(BaseModel):
     overall_assessment: str
     decision_assessment: Optional[str] = None
     evidence_strength: Optional[str] = None
+    decision_confidence: Optional[int] = None
     human_review_status: str
 
 
@@ -204,6 +205,7 @@ class ExaminationDetailResponse(BaseModel):
     overall_assessment: str
     decision_assessment: Optional[str] = None
     evidence_strength: Optional[str] = None
+    decision_confidence: Optional[int] = None
     coverage_score: Optional[float] = None
     decision_output: Optional[DecisionEngineOutput] = None
     detector_results: List[DetectorResult] = Field(default_factory=list)
