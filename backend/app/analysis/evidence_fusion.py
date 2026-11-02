@@ -16,11 +16,11 @@ from app.analysis.fusion.composite_heatmap import CompositeHeatmapGenerator
 
 class EvidenceFusionEngine:
     """
-    Evidence Correlation, Calibrated Confidence Scoring & Four-Pillar Forensic Engine (SATYA v2).
+    Evidence Correlation, Conservative Screening Decision & Four-Pillar Forensic Engine (SATYA v2.1).
     Conforms to NIST OpenMFC, ISO/IEC 27037, and C2PA Specification 2.x standards.
     
     Synthesizes normalized detector results, manages evidence family correlation,
-    executes the deterministic decision engine, and generates composite heatmaps.
+    executes the deterministic screening decision engine, and generates composite heatmaps.
     """
     ENGINE_VERSION = "2026.2-v2.1-unvalidated"
 
@@ -43,7 +43,7 @@ class EvidenceFusionEngine:
         image_path: Optional[Path] = None,
     ) -> Dict[str, Any]:
         """
-        Synthesizes raw and normalized forensic signals into calibrated assessments,
+        Synthesizes raw and normalized forensic signals into uncalibrated screening assessments,
         evaluates evidence families, answers the 4 forensic questions, extracts localized
         suspicious regions, and constructs the canonical evidence schema.
         """
@@ -153,17 +153,17 @@ class EvidenceFusionEngine:
         splice_decisive = any("splicing" in d.detector for d in decision_output.decisive_observations)
 
         if copymove_decisive:
-            q2_integrity = "Locally Tampered: Coherent Cloned / Duplicated Content Verified"
-            integrity_code = "LOCALLY_ALTERED_CLONED"
+            q2_integrity = "Potential copy-move indicator: duplicated regions require examiner verification."
+            integrity_code = "COPY_MOVE_INDICATOR_DETECTED"
         elif splice_decisive:
-            q2_integrity = "Locally Spliced: Multi-Source Composite Boundary Discontinuity Detected"
-            integrity_code = "LOCALLY_SPLICED"
+            q2_integrity = "Potential splicing indicator: composite boundary anomaly requires examiner verification."
+            integrity_code = "SPLICING_INDICATOR_DETECTED"
         elif decision_output.final_assessment == "MANIPULATION_INDICATORS_DETECTED":
             q2_integrity = "Potential manipulation indicators detected; examiner verification required."
             integrity_code = "MANIPULATION_INDICATORS_DETECTED"
         elif c2pa_present and signature_valid and not ai_declared:
-            q2_integrity = "Unaltered: Cryptographically Sealed Provenance Intact"
-            integrity_code = "AUTHENTIC_SEALED"
+            q2_integrity = "A provenance signature validated for its stated claims; this does not prove all image content is unaltered."
+            integrity_code = "PROVENANCE_SIGNATURE_VALIDATED"
         elif decision_output.final_assessment == "NO_MANIPULATION_INDICATORS_DETECTED":
             q2_integrity = "No manipulation indicators detected by applicable methods; this is not proof of an unaltered file."
             integrity_code = "NO_INDICATORS_DETECTED"
@@ -173,7 +173,7 @@ class EvidenceFusionEngine:
 
         # Q3: Generation
         if ai_declared:
-            q3_generation = "Generative AI: Explicitly Declared in C2PA Provenance Manifest"
+            q3_generation = "A C2PA manifest declares an AI-related action; verify claim scope, signer, and trust chain."
             generation_code = "AI_DECLARED"
         elif decision_output.final_assessment == "AI_GENERATION_INDICATORS_DETECTED":
             q3_generation = "AI-generation indicators detected by heuristic screening; no probability or generation attribution is established."
@@ -185,21 +185,21 @@ class EvidenceFusionEngine:
             q3_generation = "Indeterminate: Camera metadata is present but does not establish physical capture or generation method."
             generation_code = "INDETERMINATE_CAMERA_METADATA"
         else:
-            q3_generation = "Standard Digital Media (No Generative Diffusion Markers Detected)"
+            q3_generation = "Generation method is indeterminate from the available screening evidence."
             generation_code = "CONVENTIONAL_DIGITAL"
 
         # Q4: Transformation
         transformations: List[str] = []
         if is_screen_capture:
-            transformations.append("Direct Screen Rasterization")
+            transformations.append("Screenshot-like characteristics observed")
         if jpeg_analytics.get("double_compression_suspected"):
-            transformations.append(f"JPEG Recompression (Est. Q={jpeg_analytics.get('estimated_quality')}%)")
+            transformations.append(f"JPEG recompression indicator (estimated quality parameter {jpeg_analytics.get('estimated_quality')})")
         if copymove_decisive:
-            transformations.append("Copy-Move Cloning (Duplicated spatial keypoints)")
+            transformations.append("Copy-move indicator observed; examiner confirmation required")
         if splice_decisive:
-            transformations.append("Image Splicing / Compositing (Boundary discontinuity)")
+            transformations.append("Splicing indicator observed; examiner confirmation required")
         if "photoshop" in str(metadata_software).lower():
-            transformations.append("Exported or Edited via Adobe Photoshop")
+            transformations.append("Software metadata references Adobe Photoshop; metadata is mutable and not independently verified")
         if not transformations:
             transformations.append("No transformation indicator was emitted by the applicable screening methods; completeness is limited by detector coverage.")
         q4_transformation = "; ".join(transformations)
