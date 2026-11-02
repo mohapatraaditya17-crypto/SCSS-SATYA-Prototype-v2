@@ -126,7 +126,7 @@ class ForensicDecisionEngine:
 
         return DecisionEngineOutput(
             final_assessment=assessment,
-            decision_confidence=0.0,  # No calibrated decision probability is available.
+            decision_confidence=None,  # No calibrated decision probability is available.
             evidence_strength=strength,
             human_review_required=True,
             decisive_observations=decisive,
