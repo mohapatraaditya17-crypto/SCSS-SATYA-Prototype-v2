@@ -52,7 +52,7 @@ def test_camera_exif_and_negative_detectors_do_not_establish_authenticity():
     assert decision.final_assessment == TechnicalAssessment.NO_MANIPULATION_INDICATORS_DETECTED.value
     assert decision.decision_confidence is None
     assert decision.human_review_required is True
-    assert "does not establish authenticity" in decision.decision_rationale.lower()
+    assert "does not establish authenticity" in decision.decision_rationale.lower() or "does not establish authenticity" in decision.decision_rationale.lower()
 
 
 def test_single_weak_residual_indicator_does_not_become_likely_tampered():
