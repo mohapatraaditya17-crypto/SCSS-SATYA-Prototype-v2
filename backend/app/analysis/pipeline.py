@@ -146,6 +146,13 @@ class ForensicPipeline:
             extracted_metadata=extracted_metadata,
         )
 
+        def detector_applicable(detector_id: str) -> bool:
+            return detector_id in image_char.get("applicable_detectors", [])
+
+        def record_inapplicable(detector_id: str, method: str) -> None:
+            reason = image_char.get("inapplicable_detectors", {}).get(detector_id) or "Characterization rules marked this method not applicable."
+            all_tests.append(cls._not_applicable_test(method, reason))
+
         # 2. Test 2: Dual Cryptographic & Perceptual Hashing (SHA-256, BLAKE3, pHash, dHash, etc.)
         hash_test, _, hash_analytics = HashAnalyzer.analyze(image_path, file_bytes, file_size_bytes)
         all_tests.append(hash_test)
@@ -196,63 +203,79 @@ class ForensicPipeline:
             record_inapplicable("error_level_analysis", "Error Level Analysis")
 
         # 7. Test 7: Image Consistency & Channel Analytics
-        consistency_test, consistency_artifacts, consistency_analytics = ConsistencyAnalyzer.analyze(
-            image_path, examination_id, media_type, extracted_metadata
-        )
-        all_tests.append(consistency_test)
-        all_artifacts.update(consistency_artifacts)
-        if "channels" in consistency_analytics:
-            all_artifacts["channel_analytics"] = consistency_analytics["channels"]
-        if "quadrant_variance" in consistency_analytics:
-            all_artifacts["quadrant_variance"] = consistency_analytics["quadrant_variance"]
+        if detector_applicable("image_consistency_checks"):
+            consistency_test, consistency_artifacts, consistency_analytics = ConsistencyAnalyzer.analyze(
+                image_path, examination_id, media_type, extracted_metadata
+            )
+            all_tests.append(consistency_test)
+            all_artifacts.update(consistency_artifacts)
+            if "channels" in consistency_analytics:
+                all_artifacts["channel_analytics"] = consistency_analytics["channels"]
+            if "quadrant_variance" in consistency_analytics:
+                all_artifacts["quadrant_variance"] = consistency_analytics["quadrant_variance"]
+        else:
+            consistency_analytics = {"applicable": False}
+            record_inapplicable("image_consistency_checks", "Image Consistency & Channel Analytics")
 
         # 8. Test 8: Multi-Scale Noise Inconsistency & Residual Analysis (SATYA v2)
-        noise_out = NoiseAnalyzer.analyze(image_path, examination_id, media_type)
-        noise_test = noise_out[0]
-        noise_artifacts = noise_out[1]
-        noise_analytics = noise_out[2]
-        noise_det_res = noise_out[3] if len(noise_out) > 3 else None
-        all_tests.append(noise_test)
-        all_artifacts.update(noise_artifacts)
-        if noise_analytics:
-            all_artifacts["noise_analytics"] = noise_analytics
-        if noise_det_res:
-            all_detector_results.append(noise_det_res)
+        if detector_applicable("noise_residual_analysis"):
+            noise_out = NoiseAnalyzer.analyze(image_path, examination_id, media_type)
+            noise_test, noise_artifacts, noise_analytics = noise_out[:3]
+            noise_det_res = noise_out[3] if len(noise_out) > 3 else None
+            all_tests.append(noise_test)
+            all_artifacts.update(noise_artifacts)
+            if noise_analytics:
+                all_artifacts["noise_analytics"] = noise_analytics
+            if noise_det_res:
+                all_detector_results.append(noise_det_res)
+        else:
+            noise_analytics = {"applicable": False}
+            record_inapplicable("noise_residual_analysis", "Multi-Scale Noise Residual Analysis")
 
         # 9. Test 9: 2D Fourier Spectral Analysis (FFT Frequency & Lattice Artifacts)
-        fft_test, fft_artifacts, fft_analytics = FFTAnalyzer.analyze(
-            image_path, examination_id, media_type
-        )
-        all_tests.append(fft_test)
-        all_artifacts.update(fft_artifacts)
-        if fft_analytics:
-            all_artifacts["fft_analytics"] = fft_analytics
+        if detector_applicable("fourier_spectral_analysis"):
+            fft_test, fft_artifacts, fft_analytics = FFTAnalyzer.analyze(
+                image_path, examination_id, media_type
+            )
+            all_tests.append(fft_test)
+            all_artifacts.update(fft_artifacts)
+            if fft_analytics:
+                all_artifacts["fft_analytics"] = fft_analytics
+        else:
+            fft_analytics = {"applicable": False}
+            record_inapplicable("fourier_spectral_analysis", "Fourier Spectral Analysis")
 
         # 10. Test 10: Copy-Move / Clone Forgery Detection (SATYA v2)
-        copymove_out = CopyMoveAnalyzer.analyze(image_path, examination_id, media_type)
-        copymove_test = copymove_out[0]
-        copymove_artifacts = copymove_out[1]
-        copymove_analytics = copymove_out[2]
-        copymove_det_res = copymove_out[3] if len(copymove_out) > 3 else None
-        all_tests.append(copymove_test)
-        all_artifacts.update(copymove_artifacts)
-        if copymove_analytics:
-            all_artifacts["copymove_analytics"] = copymove_analytics
-        if copymove_det_res:
-            all_detector_results.append(copymove_det_res)
+        if detector_applicable("copy_move_forgery_detection"):
+            copymove_out = CopyMoveAnalyzer.analyze(image_path, examination_id, media_type)
+            copymove_test = copymove_out[0]
+            copymove_artifacts = copymove_out[1]
+            copymove_analytics = copymove_out[2]
+            copymove_det_res = copymove_out[3] if len(copymove_out) > 3 else None
+            all_tests.append(copymove_test)
+            all_artifacts.update(copymove_artifacts)
+            if copymove_analytics:
+                all_artifacts["copymove_analytics"] = copymove_analytics
+            if copymove_det_res:
+                all_detector_results.append(copymove_det_res)
+        else:
+            copymove_analytics = {"applicable": False}
+            record_inapplicable("copy_move_forgery_detection", "Copy-Move Forgery Detection")
 
         # 11. Test 11: AI Generative Classifier (SATYA v2)
-        ai_out = AISyntheticAnalyzer.analyze(image_path, examination_id, media_type)
-        ai_test = ai_out[0]
-        ai_artifacts = ai_out[1]
-        ai_analytics = ai_out[2]
-        ai_det_res = ai_out[3] if len(ai_out) > 3 else None
-        all_tests.append(ai_test)
-        all_artifacts.update(ai_artifacts)
-        if ai_analytics:
-            all_artifacts["ai_synthetic_analytics"] = ai_analytics
-        if ai_det_res:
-            all_detector_results.append(ai_det_res)
+        if detector_applicable("ai_generative_classifier"):
+            ai_out = AISyntheticAnalyzer.analyze(image_path, examination_id, media_type)
+            ai_test, ai_artifacts, ai_analytics = ai_out[:3]
+            ai_det_res = ai_out[3] if len(ai_out) > 3 else None
+            all_tests.append(ai_test)
+            all_artifacts.update(ai_artifacts)
+            if ai_analytics:
+                all_artifacts["ai_synthetic_analytics"] = ai_analytics
+            if ai_det_res:
+                all_detector_results.append(ai_det_res)
+        else:
+            ai_analytics = {"applicable": False}
+            record_inapplicable("ai_generative_classifier", "Statistical Synthetic-Indicator Heuristic")
 
         # 12. Test 12: Document Typography & Character Alignment Engine (SATYA v2)
         if detector_applicable("document_typography_and_alignment"):
@@ -273,27 +296,33 @@ class ForensicPipeline:
             record_inapplicable("document_typography_and_alignment", "Document Typography & Character Alignment")
 
         # 13. Test 13: SRM Spatial Rich Model & Wavelet Residual Analysis
-        srm_test, _, srm_analytics = SRMWaveletAnalyzer.analyze(
-            image_path, examination_id, media_type
-        )
-        all_tests.append(srm_test)
-        if srm_analytics:
-            all_artifacts["srm_analytics"] = srm_analytics
+        if detector_applicable("srm_wavelet_analysis"):
+            srm_test, _, srm_analytics = SRMWaveletAnalyzer.analyze(
+                image_path, examination_id, media_type
+            )
+            all_tests.append(srm_test)
+            if srm_analytics:
+                all_artifacts["srm_analytics"] = srm_analytics
+        else:
+            srm_analytics = {"applicable": False}
+            record_inapplicable("srm_wavelet_analysis", "SRM Wavelet Residual Analysis")
 
         # 14. Test 14: Splicing & Composite Forgery Detection (SATYA v2)
-        splice_out = SplicingDetector.analyze(
-            image_path, examination_id, media_type
-        )
-        splice_test = splice_out[0]
-        splice_artifacts = splice_out[1]
-        splice_analytics = splice_out[2]
-        splice_det_res = splice_out[3] if len(splice_out) > 3 else None
-        all_tests.append(splice_test)
-        all_artifacts.update(splice_artifacts)
-        if splice_analytics:
-            all_artifacts["splicing_analytics"] = splice_analytics
-        if splice_det_res:
-            all_detector_results.append(splice_det_res)
+        if detector_applicable("image_splicing_detector"):
+            splice_out = SplicingDetector.analyze(image_path, examination_id, media_type)
+            splice_test = splice_out[0]
+            splice_artifacts = splice_out[1]
+            splice_analytics = splice_out[2]
+            splice_det_res = splice_out[3] if len(splice_out) > 3 else None
+            all_tests.append(splice_test)
+            all_artifacts.update(splice_artifacts)
+            if splice_analytics:
+                all_artifacts["splicing_analytics"] = splice_analytics
+            if splice_det_res:
+                all_detector_results.append(splice_det_res)
+        else:
+            splice_analytics = {"applicable": False}
+            record_inapplicable("image_splicing_detector", "Image Splicing Detection")
 
         # 15. Test 15: Illumination Direction & Geometric Consistency
         if detector_applicable("lighting_consistency_analysis"):
