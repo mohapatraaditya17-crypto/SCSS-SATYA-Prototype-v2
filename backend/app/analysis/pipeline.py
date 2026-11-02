@@ -103,23 +103,6 @@ class ForensicPipeline:
         all_detector_results: List[DetectorResult] = []
         all_artifacts: Dict[str, Any] = {}
 
-        # 0. Phase 0: Image Characterization & Applicability Determination
-        image_char = ImageCharacterizer.characterize(
-            image_path=image_path,
-            file_bytes=file_bytes,
-            mime_type=media_type,
-            image_width=image_width,
-            image_height=image_height,
-            extracted_metadata=extracted_metadata,
-        )
-
-        def detector_applicable(detector_id: str) -> bool:
-            return detector_id in image_char.get("applicable_detectors", [])
-
-        def record_inapplicable(detector_id: str, method: str) -> None:
-            reason = image_char.get("inapplicable_detectors", {}).get(detector_id) or "Characterization rules marked this method not applicable."
-            all_tests.append(cls._not_applicable_test(method, reason))
-
         # 1. Test 1: Metadata & Deep Structural Chunk Forensics
         meta_res = MetadataAnalyzer.analyze(file_bytes, image_width, image_height, media_type)
         all_tests.append(meta_res["test_result"])
@@ -140,16 +123,41 @@ class ForensicPipeline:
             except Exception:
                 pass
 
-        # 2. Test 2: Dual Cryptographic & Perceptual Hashing (SHA-256, BLAKE3, pHash, dHash, etc.)
-        hash_test, _, hash_analytics = HashAnalyzer.analyze(image_path, file_bytes, file_size_bytes)
-        all_tests.append(hash_test)
-        if hash_analytics:
-            all_artifacts["hash_analytics"] = hash_analytics
+        # 0. Phase 0: Image Characterization & Applicability Determination
+        image_char = ImageCharacterizer.characterize(
+            image_path=image_path,
+            file_bytes=file_bytes,
+            mime_type=media_type,
+            image_width=image_width,
+            image_height=image_height,
+            extracted_metadata=extracted_metadata,
+        )
+
+        def detector_applicable(detector_id: str) -> bool:
+            return detector_id in image_char.get("applicable_detectors", [])
+
+        def record_inapplicable(detector_id: str, method: str) -> None:
+            reason = image_char.get("inapplicable_detectors", {}).get(detector_id) or "Characterization rules marked this method not applicable."
+            all_tests.append(cls._not_applicable_test(method, reason))
+
+        # 2. Test 2: Dual Cryptographic & Perceptual Hashing
+        if detector_applicable("cryptographic_and_perceptual_hashing"):
+            hash_test, _, hash_analytics = HashAnalyzer.analyze(image_path, file_bytes, file_size_bytes)
+            all_tests.append(hash_test)
+            if hash_analytics:
+                all_artifacts["hash_analytics"] = hash_analytics
+        else:
+            hash_analytics = {}
+            record_inapplicable("cryptographic_and_perceptual_hashing", "Cryptographic & Perceptual Hashing")
 
         # 3. Test 3: C2PA & Content Credentials Cryptographic Provenance
-        c2pa_test, c2pa_analytics = C2PAAnalyzer.analyze(file_bytes, media_type, extracted_metadata)
-        all_tests.append(c2pa_test)
-        all_artifacts["c2pa_analytics"] = c2pa_analytics
+        if detector_applicable("c2pa_provenance"):
+            c2pa_test, c2pa_analytics = C2PAAnalyzer.analyze(file_bytes, media_type, extracted_metadata)
+            all_tests.append(c2pa_test)
+            all_artifacts["c2pa_analytics"] = c2pa_analytics
+        else:
+            c2pa_analytics = {"applicable": False}
+            record_inapplicable("c2pa_provenance", "C2PA & Content Credentials Provenance")
 
         # 4. Test 4: Document & Container Structural Forensics
         if "document_forensics" in image_char.get("inapplicable_detectors", {}):
