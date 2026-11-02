@@ -36,14 +36,12 @@ def run_migrations():
                 ("detector_versions", "JSON DEFAULT '{}'"),
             ]
 
-            # Legacy release wrote a synthetic default of 50 despite having no
-            # empirical calibrator. Clear only these default values when no
-            # decision payload exists; preserve all other recorded values.
+            # The current release has no empirical calibrator. A stored 50 is
+            # the legacy database default rather than a calibrated probability.
             if "decision_confidence" in existing_cols:
                 conn.execute(text(
                     "UPDATE examinations SET decision_confidence = NULL "
-                    "WHERE decision_confidence = 50 AND "
-                    "(decision_data IS NULL OR decision_data = '{}' OR decision_data = 'null')"
+                    "WHERE decision_confidence = 50"
                 ))
                 conn.commit()
             for col_name, col_def in new_columns:
