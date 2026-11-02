@@ -32,9 +32,16 @@ class EvidenceFamilyType(str, Enum):
 
 
 class TechnicalAssessment(str, Enum):
-    LIKELY_AUTHENTIC = "LIKELY_AUTHENTIC"
-    LIKELY_TAMPERED = "LIKELY_TAMPERED"
+    # Screening outcomes; these are not final forensic opinions.
+    MANIPULATION_INDICATORS_DETECTED = "MANIPULATION_INDICATORS_DETECTED"
+    AI_GENERATION_INDICATORS_DETECTED = "AI_GENERATION_INDICATORS_DETECTED"
+    PROVENANCE_VERIFIED = "PROVENANCE_VERIFIED"
+    PROVENANCE_CONFLICT = "PROVENANCE_CONFLICT"
+    NO_MANIPULATION_INDICATORS_DETECTED = "NO_MANIPULATION_INDICATORS_DETECTED"
     INCONCLUSIVE = "INCONCLUSIVE"
+    INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
+    LIKELY_AUTHENTIC = "LIKELY_AUTHENTIC"  # deprecated; no longer emitted
+    LIKELY_TAMPERED = "LIKELY_TAMPERED"    # deprecated; no longer emitted
     UNSUPPORTED_FORMAT = "UNSUPPORTED_FORMAT"
     ERROR = "ERROR"
     INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
@@ -69,8 +76,11 @@ class DetectorResult(BaseModel):
     detector_name: str
     detector_version: str
     status: str = DetectorStatus.INCONCLUSIVE.value  # POSITIVE, NEGATIVE, INCONCLUSIVE, NOT_APPLICABLE, ERROR
-    score: float = 0.0
-    confidence: float = 0.0
+    # Missing detector outputs remain unknown; never synthesize values.
+    score: Optional[float] = None
+    confidence: Optional[float] = None
+    raw_score: Optional[float] = None
+    calibrated_probability: Optional[float] = None
     evidence_strength: str = EvidenceStrength.NONE.value  # NONE, LOW, MODERATE, STRONG, VERY_STRONG
     applicable: bool = True
     technical_reason: str = ""
@@ -100,6 +110,11 @@ class DecisionEngineOutput(BaseModel):
     contradictory_observations: List[str] = Field(default_factory=list)
     inconclusive_tests: List[str] = Field(default_factory=list)
     not_applicable_tests: List[str] = Field(default_factory=list)
+    error_tests: List[str] = Field(default_factory=list)
+    applicable_detector_count: int = 0
+    successful_detector_count: int = 0
+    detector_error_count: int = 0
+    coverage_score: Optional[float] = None
     decision_rationale: str = ""
     evidence_families: Dict[str, EvidenceFamilySummary] = Field(default_factory=dict)
     rules_version: str = "2026.2-v2"
@@ -189,6 +204,7 @@ class ExaminationDetailResponse(BaseModel):
     overall_assessment: str
     decision_assessment: Optional[str] = None
     evidence_strength: Optional[str] = None
+    coverage_score: Optional[float] = None
     decision_output: Optional[DecisionEngineOutput] = None
     detector_results: List[DetectorResult] = Field(default_factory=list)
     image_characterization: Dict[str, Any] = Field(default_factory=dict)
