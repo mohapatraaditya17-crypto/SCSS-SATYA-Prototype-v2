@@ -91,10 +91,12 @@ class ConfusionMatrixEngine:
                 self.coverage["applicable"] += 1
                 self.coverage["successful"] += 1
             elif observation == "NOT_APPLICABLE":
+                metric.not_applicable += 1
                 counts["not_applicable"] += 1
                 stratum["not_applicable"] += 1
                 self.coverage["not_applicable"] += 1
             elif observation == "ERROR":
+                metric.error += 1
                 counts["error"] += 1
                 stratum["error"] += 1
                 self.coverage["applicable"] += 1
