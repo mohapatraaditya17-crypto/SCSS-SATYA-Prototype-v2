@@ -7,9 +7,9 @@ from app.ml.model_registry import ModelRegistry, ModelMetadata
 
 class CalibratedForensicClassifier:
     """
-    Calibrated Forensic Feature Model (SATYA v2).
-    Evaluates multi-domain normalized forensic indicators using a calibrated
-    probabilistic logistic model trained to prevent single-feature dominance.
+    Deprecated experimental heuristic. Coefficients are not backed by a
+    reproducible training artifact or independent calibration dataset. Do not
+    use as a probability estimator or as an authoritative decision input.
     """
     MODEL_NAME = "satya-forensic-fusion-ml"
     VERSION = "2.0.0"
@@ -53,8 +53,8 @@ class CalibratedForensicClassifier:
     @classmethod
     def predict_proba(cls, all_artifacts: Dict[str, Any]) -> Tuple[float, float]:
         """
-        Calculates calibrated tampering probability and model confidence.
-        Returns (tamper_probability, confidence).
+        Returns an experimental score and heuristic margin. Neither value is
+        a probability or calibrated confidence.
         """
         feats = cls.extract_features(all_artifacts)
         z = cls.INTERCEPT
