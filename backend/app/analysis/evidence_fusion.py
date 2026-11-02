@@ -64,8 +64,8 @@ class EvidenceFusionEngine:
                 elif t.indicator == "no_indicator_detected":
                     status_str = DetectorStatus.NEGATIVE.value
 
-                score = t.score if t.score is not None else (0.85 if status_str == DetectorStatus.POSITIVE.value else 0.10)
-                conf = t.confidence if t.confidence is not None else 0.80
+                score = t.score
+                conf = t.confidence
 
                 detector_results.append(
                     DetectorResult(
@@ -74,7 +74,7 @@ class EvidenceFusionEngine:
                         status=status_str,
                         score=score,
                         confidence=conf,
-                        evidence_strength=ForensicCalibrator.get_evidence_strength(score, conf),
+                        evidence_strength=t.evidence_strength or ForensicCalibrator.get_evidence_strength(score, conf),
                         applicable=t.status != "not_applicable",
                         technical_reason=t.explanation,
                         affected_regions=t.affected_regions or [],
@@ -124,7 +124,7 @@ class EvidenceFusionEngine:
         signature_valid = c2pa_analytics.get("signature_valid")
         ai_declared = c2pa_analytics.get("ai_declared", False)
         is_screen_capture = image_char.get("image_class") == "SCREENSHOT"
-        has_camera_exif = image_char.get("has_camera_exif", False)
+        camera_metadata_present = image_char.get("camera_metadata_present", image_char.get("has_camera_exif", False))
         metadata_software = extracted_metadata.get("Software") or jpeg_analytics.get("software_fingerprint") or "Unknown"
 
         # 7. Answer the Four Independent Forensic Questions (ISO/IEC 27037)
@@ -132,11 +132,11 @@ class EvidenceFusionEngine:
         if is_screen_capture:
             q1_origin = "Direct Digital Screen Rendering (Display Interface Buffer)"
             origin_code = "SCREEN_CAPTURE"
-        elif has_camera_exif:
-            make = image_char.get("camera_make") or extracted_metadata.get("Make", "Camera")
+        elif camera_metadata_present:
+            make = image_char.get("camera_make") or extracted_metadata.get("Make", "Unknown")
             model = image_char.get("camera_model") or extracted_metadata.get("Model", "")
-            q1_origin = f"Physical Optical Camera Sensor ({make} {model})".strip()
-            origin_code = "CAMERA_ORIGIN"
+            q1_origin = f"Camera metadata present ({make} {model}); capture origin is unverified".strip()
+            origin_code = "CAMERA_METADATA_PRESENT_UNVERIFIED"
         elif document_analytics.get("document_type") in ["pdf", "office_openxml"]:
             q1_origin = f"Digital Document Structure ({document_analytics.get('document_type').upper()})"
             origin_code = "DOCUMENT_CONTAINER"
@@ -161,11 +161,11 @@ class EvidenceFusionEngine:
             q2_integrity = "Locally Altered: Converging Multi-Evidence Forensic Anomalies"
             integrity_code = "LOCALLY_ALTERED"
         elif c2pa_present and signature_valid and not ai_declared:
-            q2_integrity = "Unaltered: Cryptographically Sealed Provenance Intact"
-            integrity_code = "AUTHENTIC_SEALED"
-        elif decision_output.final_assessment == "LIKELY_AUTHENTIC":
-            q2_integrity = "Consistent: No Statistical or Structural Tampering Traces Observed"
-            integrity_code = "CONSISTENT_UNALTERED"
+            q2_integrity = "C2PA signature validation succeeded for the supplied manifest; claim scope requires examiner review"
+            integrity_code = "C2PA_SIGNATURE_VALID"
+        elif decision_output.final_assessment == "NO_MANIPULATION_INDICATORS_DETECTED":
+            q2_integrity = "No manipulation indicators reported by completed applicable screening methods; authenticity is not established"
+            integrity_code = "NO_INDICATORS_REPORTED"
         else:
             q2_integrity = "Inconclusive: Bitstream Preserved without Decisive Alteration Markers"
             integrity_code = "INCONCLUSIVE"
@@ -180,9 +180,9 @@ class EvidenceFusionEngine:
         elif is_screen_capture:
             q3_generation = "Human Interaction: Direct Operating System Interface Render"
             generation_code = "SCREEN_RENDER"
-        elif has_camera_exif and decision_output.final_assessment != "LIKELY_TAMPERED":
-            q3_generation = "Physical World Capture: Optical Camera Lens Exposure"
-            generation_code = "PHYSICAL_WORLD_CAPTURE"
+        elif camera_metadata_present:
+            q3_generation = "Camera metadata is present; generation origin is undetermined"
+            generation_code = "CAMERA_METADATA_UNVERIFIED"
         else:
             q3_generation = "Standard Digital Media (No Generative Diffusion Markers Detected)"
             generation_code = "CONVENTIONAL_DIGITAL"
@@ -253,7 +253,10 @@ class EvidenceFusionEngine:
             "metadata": {
                 "camera": f"{extracted_metadata.get('Make', '')} {extracted_metadata.get('Model', '')}".strip() or "None",
                 "software": metadata_software,
-                "has_camera_exif": has_camera_exif,
+                "has_camera_exif": camera_metadata_present,
+                "camera_metadata_present": camera_metadata_present,
+                "camera_metadata_verified": bool(image_char.get("camera_metadata_verified", False)),
+                "cryptographic_provenance_verified": bool(image_char.get("cryptographic_provenance_verified", False)),
             },
             "localization": {
                 "heatmap": all_artifacts.get("composite_evidence_map") or all_artifacts.get("copymove_map") or all_artifacts.get("noise_residual_map") or all_artifacts.get("ela_heatmap"),
@@ -267,6 +270,12 @@ class EvidenceFusionEngine:
                 "evidence_strength": decision_output.evidence_strength,
                 "human_review_required": True,
                 "decision_rationale": decision_output.decision_rationale,
+                "coverage": {
+                    "applicable_detectors": decision_output.applicable_detector_count,
+                    "successful_detectors": decision_output.successful_detector_count,
+                    "errors": decision_output.detector_error_count,
+                    "coverage_score": decision_output.coverage_score,
+                },
                 "four_pillars": {
                     "q1_origin": {"question": "Q1 - Where did this content originate?", "finding": q1_origin, "code": origin_code},
                     "q2_integrity": {"question": "Q2 - Has the file/content been altered?", "finding": q2_integrity, "code": integrity_code},
