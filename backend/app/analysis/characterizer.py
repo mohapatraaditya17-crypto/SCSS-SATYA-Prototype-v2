@@ -128,9 +128,9 @@ class ImageCharacterizer:
         elif is_screenshot_name or (is_screen_resolution and not has_camera_exif and is_png):
             image_class = "SCREENSHOT"
         elif has_camera_exif:
-            # Physical camera metadata is authoritative: classify as photograph even if
-            # pixel statistics happen to look "flat" (e.g. synthetic test images, skies).
-            image_class = "PHOTOGRAPH"
+            # EXIF is mutable metadata. Preserve a neutral candidate label without
+            # asserting that the specimen is an optical photograph.
+            image_class = "CAMERA_METADATA_PRESENT"
         elif is_flat_graphic:
             image_class = "GRAPHIC"
         elif is_ai_software or (is_ai_res and not has_camera_exif):
@@ -180,6 +180,9 @@ class ImageCharacterizer:
             "megapixels": megapixels,
             "aspect_ratio": aspect_ratio,
             "has_camera_exif": has_camera_exif,
+            "camera_metadata_present": has_camera_exif,
+            "camera_metadata_verified": False,
+            "provenance_level": 0,
             "camera_make": camera_make,
             "camera_model": camera_model,
             "software_tag": software_tag,

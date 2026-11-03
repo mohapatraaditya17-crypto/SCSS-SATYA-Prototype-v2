@@ -43,7 +43,7 @@ class ForensicPipeline:
       5. Calibrated Multi-Evidence Decision Engine
       6. Composite Forensic Heatmap Fusion
     """
-    PIPELINE_VERSION = "2026.2-v2"
+    PIPELINE_VERSION = "2026.3-v2.1"
 
     STANDARD_SUGGESTED_MANUAL_CHECKS: List[str] = [
         "Inspect original hardware or source storage device directly where possible (camera SD card, mobile device bitstream acquisition).",
@@ -66,6 +66,21 @@ class ForensicPipeline:
         "Screenshots and flat UI graphics naturally lack optical sensor noise and camera EXIF records.",
         "C2PA provenance manifests require unbroken cryptographic chains; file format conversions drop external manifest bindings.",
     ]
+
+    @staticmethod
+    def _not_applicable_test(method: str, reason: str) -> ScreeningTestResult:
+        return ScreeningTestResult(
+            method=method,
+            version="2.1.0",
+            status="not_applicable",
+            indicator="test_unavailable",
+            indicator_label="Not applicable",
+            observations=[reason],
+            explanation=reason,
+            limitations=["Applicability is a routing decision, not ground truth."],
+            execution_time_ms=0.0,
+        )
+
 
     @classmethod
     def execute(
@@ -93,6 +108,23 @@ class ForensicPipeline:
         all_tests.append(meta_res["test_result"])
         extracted_metadata = meta_res["extracted_metadata"]
 
+        # 0. Phase 0: Image Characterization & Applicability Determination
+        image_char = ImageCharacterizer.characterize(
+            image_path=image_path,
+            file_bytes=file_bytes,
+            mime_type=media_type,
+            image_width=image_width,
+            image_height=image_height,
+            extracted_metadata=extracted_metadata,
+        )
+
+        def detector_applicable(detector_id: str) -> bool:
+            return detector_id in image_char.get("applicable_detectors", [])
+
+        def record_inapplicable(detector_id: str, method: str) -> None:
+            reason = image_char.get("inapplicable_detectors", {}).get(detector_id) or "Characterization rules marked this method not applicable."
+            all_tests.append(cls._not_applicable_test(method, reason))
+
         # Parse capture timestamp
         capture_timestamp = None
         raw_date = (
@@ -108,26 +140,24 @@ class ForensicPipeline:
             except Exception:
                 pass
 
-        # 0. Phase 0: Image Characterization & Applicability Determination
-        image_char = ImageCharacterizer.characterize(
-            image_path=image_path,
-            file_bytes=file_bytes,
-            mime_type=media_type,
-            image_width=image_width,
-            image_height=image_height,
-            extracted_metadata=extracted_metadata,
-        )
-
-        # 2. Test 2: Dual Cryptographic & Perceptual Hashing (SHA-256, BLAKE3, pHash, dHash, etc.)
-        hash_test, _, hash_analytics = HashAnalyzer.analyze(image_path, file_bytes, file_size_bytes)
-        all_tests.append(hash_test)
-        if hash_analytics:
-            all_artifacts["hash_analytics"] = hash_analytics
+        # 2. Test 2: Dual Cryptographic & Perceptual Hashing
+        if detector_applicable("cryptographic_and_perceptual_hashing"):
+            hash_test, _, hash_analytics = HashAnalyzer.analyze(image_path, file_bytes, file_size_bytes)
+            all_tests.append(hash_test)
+            if hash_analytics:
+                all_artifacts["hash_analytics"] = hash_analytics
+        else:
+            hash_analytics = {}
+            record_inapplicable("cryptographic_and_perceptual_hashing", "Cryptographic & Perceptual Hashing")
 
         # 3. Test 3: C2PA & Content Credentials Cryptographic Provenance
-        c2pa_test, c2pa_analytics = C2PAAnalyzer.analyze(file_bytes, media_type, extracted_metadata)
-        all_tests.append(c2pa_test)
-        all_artifacts["c2pa_analytics"] = c2pa_analytics
+        if detector_applicable("c2pa_provenance"):
+            c2pa_test, c2pa_analytics = C2PAAnalyzer.analyze(file_bytes, media_type, extracted_metadata)
+            all_tests.append(c2pa_test)
+            all_artifacts["c2pa_analytics"] = c2pa_analytics
+        else:
+            c2pa_analytics = {"applicable": False}
+            record_inapplicable("c2pa_provenance", "C2PA & Content Credentials Provenance")
 
         # 4. Test 4: Document & Container Structural Forensics
         if "document_forensics" in image_char.get("inapplicable_detectors", {}):
@@ -136,8 +166,8 @@ class ForensicPipeline:
                 method="Document & Container Structural Forensics (ISO/IEC 29500 & PDF 32000)",
                 version="2.0.0",
                 status="not_applicable",
-                indicator="no_indicator_detected",
-                indicator_label="Not Applicable (Photographic Media)",
+                indicator="test_unavailable",
+                indicator_label="Not Applicable (non-document media)",
                 observations=[reason],
                 explanation="Specimen is an image rather than an active PDF/Office document container.",
                 limitations=cls.STANDARD_KNOWN_LIMITATIONS,
@@ -150,119 +180,156 @@ class ForensicPipeline:
         all_artifacts["document_analytics"] = doc_analytics
 
         # 5. Test 5: JPEG Quantization (DQT) & Double-Compression Analysis
-        jpeg_test, jpeg_analytics = JPEGQuantizationAnalyzer.analyze(file_bytes, media_type)
-        all_tests.append(jpeg_test)
+        if detector_applicable("jpeg_quantization_analysis"):
+            jpeg_test, jpeg_analytics = JPEGQuantizationAnalyzer.analyze(file_bytes, media_type)
+            all_tests.append(jpeg_test)
+        else:
+            jpeg_analytics = {"applicable": False, "reason": image_char.get("inapplicable_detectors", {}).get("jpeg_quantization_analysis")}
+            record_inapplicable("jpeg_quantization_analysis", "JPEG Quantization Analysis")
         all_artifacts["jpeg_analytics"] = jpeg_analytics
 
         # 6. Test 6: Error Level Analysis (ELA - JPEG DCT Compression Grids)
-        ela_test, ela_artifacts = ELAAnalyzer.analyze(image_path, examination_id, media_type)
-        all_tests.append(ela_test)
-        all_artifacts.update(ela_artifacts)
+        if detector_applicable("error_level_analysis"):
+            ela_test, ela_artifacts = ELAAnalyzer.analyze(image_path, examination_id, media_type)
+            all_tests.append(ela_test)
+            all_artifacts.update(ela_artifacts)
+        else:
+            ela_artifacts = {}
+            record_inapplicable("error_level_analysis", "Error Level Analysis")
 
         # 7. Test 7: Image Consistency & Channel Analytics
-        consistency_test, consistency_artifacts, consistency_analytics = ConsistencyAnalyzer.analyze(
-            image_path, examination_id, media_type, extracted_metadata
-        )
-        all_tests.append(consistency_test)
-        all_artifacts.update(consistency_artifacts)
-        if "channels" in consistency_analytics:
-            all_artifacts["channel_analytics"] = consistency_analytics["channels"]
-        if "quadrant_variance" in consistency_analytics:
-            all_artifacts["quadrant_variance"] = consistency_analytics["quadrant_variance"]
+        if detector_applicable("image_consistency_checks"):
+            consistency_test, consistency_artifacts, consistency_analytics = ConsistencyAnalyzer.analyze(
+                image_path, examination_id, media_type, extracted_metadata
+            )
+            all_tests.append(consistency_test)
+            all_artifacts.update(consistency_artifacts)
+            if "channels" in consistency_analytics:
+                all_artifacts["channel_analytics"] = consistency_analytics["channels"]
+            if "quadrant_variance" in consistency_analytics:
+                all_artifacts["quadrant_variance"] = consistency_analytics["quadrant_variance"]
+        else:
+            consistency_analytics = {"applicable": False}
+            record_inapplicable("image_consistency_checks", "Image Consistency & Channel Analytics")
 
         # 8. Test 8: Multi-Scale Noise Inconsistency & Residual Analysis (SATYA v2)
-        noise_out = NoiseAnalyzer.analyze(image_path, examination_id, media_type)
-        noise_test = noise_out[0]
-        noise_artifacts = noise_out[1]
-        noise_analytics = noise_out[2]
-        noise_det_res = noise_out[3] if len(noise_out) > 3 else None
-        all_tests.append(noise_test)
-        all_artifacts.update(noise_artifacts)
-        if noise_analytics:
-            all_artifacts["noise_analytics"] = noise_analytics
-        if noise_det_res:
-            all_detector_results.append(noise_det_res)
+        if detector_applicable("noise_residual_analysis"):
+            noise_out = NoiseAnalyzer.analyze(image_path, examination_id, media_type)
+            noise_test, noise_artifacts, noise_analytics = noise_out[:3]
+            noise_det_res = noise_out[3] if len(noise_out) > 3 else None
+            all_tests.append(noise_test)
+            all_artifacts.update(noise_artifacts)
+            if noise_analytics:
+                all_artifacts["noise_analytics"] = noise_analytics
+            if noise_det_res:
+                all_detector_results.append(noise_det_res)
+        else:
+            noise_analytics = {"applicable": False}
+            record_inapplicable("noise_residual_analysis", "Multi-Scale Noise Residual Analysis")
 
         # 9. Test 9: 2D Fourier Spectral Analysis (FFT Frequency & Lattice Artifacts)
-        fft_test, fft_artifacts, fft_analytics = FFTAnalyzer.analyze(
-            image_path, examination_id, media_type
-        )
-        all_tests.append(fft_test)
-        all_artifacts.update(fft_artifacts)
-        if fft_analytics:
-            all_artifacts["fft_analytics"] = fft_analytics
+        if detector_applicable("fourier_spectral_analysis"):
+            fft_test, fft_artifacts, fft_analytics = FFTAnalyzer.analyze(
+                image_path, examination_id, media_type
+            )
+            all_tests.append(fft_test)
+            all_artifacts.update(fft_artifacts)
+            if fft_analytics:
+                all_artifacts["fft_analytics"] = fft_analytics
+        else:
+            fft_analytics = {"applicable": False}
+            record_inapplicable("fourier_spectral_analysis", "Fourier Spectral Analysis")
 
         # 10. Test 10: Copy-Move / Clone Forgery Detection (SATYA v2)
-        copymove_out = CopyMoveAnalyzer.analyze(image_path, examination_id, media_type)
-        copymove_test = copymove_out[0]
-        copymove_artifacts = copymove_out[1]
-        copymove_analytics = copymove_out[2]
-        copymove_det_res = copymove_out[3] if len(copymove_out) > 3 else None
-        all_tests.append(copymove_test)
-        all_artifacts.update(copymove_artifacts)
-        if copymove_analytics:
-            all_artifacts["copymove_analytics"] = copymove_analytics
-        if copymove_det_res:
-            all_detector_results.append(copymove_det_res)
+        if detector_applicable("copy_move_forgery_detection"):
+            copymove_out = CopyMoveAnalyzer.analyze(image_path, examination_id, media_type)
+            copymove_test = copymove_out[0]
+            copymove_artifacts = copymove_out[1]
+            copymove_analytics = copymove_out[2]
+            copymove_det_res = copymove_out[3] if len(copymove_out) > 3 else None
+            all_tests.append(copymove_test)
+            all_artifacts.update(copymove_artifacts)
+            if copymove_analytics:
+                all_artifacts["copymove_analytics"] = copymove_analytics
+            if copymove_det_res:
+                all_detector_results.append(copymove_det_res)
+        else:
+            copymove_analytics = {"applicable": False}
+            record_inapplicable("copy_move_forgery_detection", "Copy-Move Forgery Detection")
 
         # 11. Test 11: AI Generative Classifier (SATYA v2)
-        ai_out = AISyntheticAnalyzer.analyze(image_path, examination_id, media_type)
-        ai_test = ai_out[0]
-        ai_artifacts = ai_out[1]
-        ai_analytics = ai_out[2]
-        ai_det_res = ai_out[3] if len(ai_out) > 3 else None
-        all_tests.append(ai_test)
-        all_artifacts.update(ai_artifacts)
-        if ai_analytics:
-            all_artifacts["ai_synthetic_analytics"] = ai_analytics
-        if ai_det_res:
-            all_detector_results.append(ai_det_res)
+        if detector_applicable("ai_generative_classifier"):
+            ai_out = AISyntheticAnalyzer.analyze(image_path, examination_id, media_type)
+            ai_test, ai_artifacts, ai_analytics = ai_out[:3]
+            ai_det_res = ai_out[3] if len(ai_out) > 3 else None
+            all_tests.append(ai_test)
+            all_artifacts.update(ai_artifacts)
+            if ai_analytics:
+                all_artifacts["ai_synthetic_analytics"] = ai_analytics
+            if ai_det_res:
+                all_detector_results.append(ai_det_res)
+        else:
+            ai_analytics = {"applicable": False}
+            record_inapplicable("ai_generative_classifier", "Statistical Synthetic-Indicator Heuristic")
 
         # 12. Test 12: Document Typography & Character Alignment Engine (SATYA v2)
-        typo_out = TypographyAnalyzer.analyze(
-            image_path, examination_id, media_type, image_characterization=image_char
-        )
-        typo_test = typo_out[0]
-        typo_artifacts = typo_out[1]
-        typo_analytics = typo_out[2]
-        typo_det_res = typo_out[3] if len(typo_out) > 3 else None
-        all_tests.append(typo_test)
-        all_artifacts.update(typo_artifacts)
-        if typo_analytics:
-            all_artifacts["typography_analytics"] = typo_analytics
-        if typo_det_res:
-            all_detector_results.append(typo_det_res)
+        if detector_applicable("document_typography_and_alignment"):
+            typo_out = TypographyAnalyzer.analyze(
+                image_path, examination_id, media_type, image_characterization=image_char
+            )
+            typo_test = typo_out[0]
+            typo_artifacts = typo_out[1]
+            typo_analytics = typo_out[2]
+            typo_det_res = typo_out[3] if len(typo_out) > 3 else None
+            all_tests.append(typo_test)
+            all_artifacts.update(typo_artifacts)
+            if typo_analytics:
+                all_artifacts["typography_analytics"] = typo_analytics
+            if typo_det_res:
+                all_detector_results.append(typo_det_res)
+        else:
+            record_inapplicable("document_typography_and_alignment", "Document Typography & Character Alignment")
 
         # 13. Test 13: SRM Spatial Rich Model & Wavelet Residual Analysis
-        srm_test, _, srm_analytics = SRMWaveletAnalyzer.analyze(
-            image_path, examination_id, media_type
-        )
-        all_tests.append(srm_test)
-        if srm_analytics:
-            all_artifacts["srm_analytics"] = srm_analytics
+        if detector_applicable("srm_wavelet_analysis"):
+            srm_test, _, srm_analytics = SRMWaveletAnalyzer.analyze(
+                image_path, examination_id, media_type
+            )
+            all_tests.append(srm_test)
+            if srm_analytics:
+                all_artifacts["srm_analytics"] = srm_analytics
+        else:
+            srm_analytics = {"applicable": False}
+            record_inapplicable("srm_wavelet_analysis", "SRM Wavelet Residual Analysis")
 
         # 14. Test 14: Splicing & Composite Forgery Detection (SATYA v2)
-        splice_out = SplicingDetector.analyze(
-            image_path, examination_id, media_type
-        )
-        splice_test = splice_out[0]
-        splice_artifacts = splice_out[1]
-        splice_analytics = splice_out[2]
-        splice_det_res = splice_out[3] if len(splice_out) > 3 else None
-        all_tests.append(splice_test)
-        all_artifacts.update(splice_artifacts)
-        if splice_analytics:
-            all_artifacts["splicing_analytics"] = splice_analytics
-        if splice_det_res:
-            all_detector_results.append(splice_det_res)
+        if detector_applicable("image_splicing_detector"):
+            splice_out = SplicingDetector.analyze(image_path, examination_id, media_type)
+            splice_test = splice_out[0]
+            splice_artifacts = splice_out[1]
+            splice_analytics = splice_out[2]
+            splice_det_res = splice_out[3] if len(splice_out) > 3 else None
+            all_tests.append(splice_test)
+            all_artifacts.update(splice_artifacts)
+            if splice_analytics:
+                all_artifacts["splicing_analytics"] = splice_analytics
+            if splice_det_res:
+                all_detector_results.append(splice_det_res)
+        else:
+            splice_analytics = {"applicable": False}
+            record_inapplicable("image_splicing_detector", "Image Splicing Detection")
 
         # 15. Test 15: Illumination Direction & Geometric Consistency
-        lighting_test, _, lighting_analytics = LightingConsistencyAnalyzer.analyze(
-            image_path, examination_id, media_type
-        )
-        all_tests.append(lighting_test)
-        if lighting_analytics:
-            all_artifacts["lighting_analytics"] = lighting_analytics
+        if detector_applicable("lighting_consistency_analysis"):
+            lighting_test, _, lighting_analytics = LightingConsistencyAnalyzer.analyze(
+                image_path, examination_id, media_type
+            )
+            all_tests.append(lighting_test)
+            if lighting_analytics:
+                all_artifacts["lighting_analytics"] = lighting_analytics
+        else:
+            lighting_analytics = {"applicable": False, "reason": image_char.get("inapplicable_detectors", {}).get("lighting_consistency_analysis")}
+            record_inapplicable("lighting_consistency_analysis", "Illumination Direction & Geometric Consistency")
 
         # Build complete DetectorResult list for all 15 tests
         already_added = {d.detector_name for d in all_detector_results}
@@ -278,8 +345,8 @@ class ForensicPipeline:
                 elif t.indicator == "no_indicator_detected":
                     status_str = DetectorStatus.NEGATIVE.value
 
-                score = t.score if t.score is not None else (0.85 if status_str == DetectorStatus.POSITIVE.value else 0.05)
-                conf = t.confidence if t.confidence is not None else 0.80
+                score = t.score
+                conf = t.confidence
                 all_detector_results.append(
                     DetectorResult(
                         detector_name=t.method,
@@ -287,7 +354,9 @@ class ForensicPipeline:
                         status=status_str,
                         score=score,
                         confidence=conf,
-                        evidence_strength=t.evidence_strength or ("STRONG" if score > 0.70 else ("MODERATE" if score > 0.40 else "NONE")),
+                        raw_score=score,
+                        calibrated_probability=None,
+                        evidence_strength=t.evidence_strength or (EvidenceStrength.NONE.value if score is None else ("STRONG" if score > 0.70 else ("MODERATE" if score > 0.40 else "NONE"))),
                         applicable=t.status != "not_applicable",
                         technical_reason=t.explanation,
                         affected_regions=t.affected_regions or [],
@@ -332,7 +401,7 @@ class ForensicPipeline:
         # Technical Assessment from Calibrated Decision Engine
         assessment_obj = canonical_evidence["assessment"]
         decision_assessment = assessment_obj["technical_assessment"]
-        decision_confidence = int(round(assessment_obj.get("confidence", 0.5) * 100))
+        decision_confidence = None if assessment_obj.get("confidence") is None else int(round(assessment_obj["confidence"] * 100))
         evidence_strength = assessment_obj.get("evidence_strength", "NONE")
 
         # Crucial Doctrine: Human Review is ALWAYS required
@@ -348,6 +417,7 @@ class ForensicPipeline:
             "decision_assessment": decision_assessment,
             "evidence_strength": evidence_strength,
             "decision_confidence": decision_confidence,
+            "coverage_score": assessment_obj.get("coverage", {}).get("coverage_score"),
             "canonical_evidence": canonical_evidence,
             "image_characterization": image_char,
             "known_limitations": cls.STANDARD_KNOWN_LIMITATIONS,

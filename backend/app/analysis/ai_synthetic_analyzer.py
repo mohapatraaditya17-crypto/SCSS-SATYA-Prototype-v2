@@ -17,7 +17,7 @@ from app.schemas.examination import (
 
 class AISyntheticAnalyzer:
     METHOD_NAME = "ai_generative_classifier"
-    VERSION = "2.0.0"
+    VERSION = "3.0.0-unvalidated"
 
     @classmethod
     def analyze(
@@ -34,7 +34,7 @@ class AISyntheticAnalyzer:
         limitations: List[str] = [
             "AI generation screening evaluates statistical spectral decay, high-frequency residuals, frequency lattice patterns, and cross-channel co-occurrence.",
             "Modern diffusion architectures (Midjourney v6, Stable Diffusion XL, FLUX.1) evolve rapidly and post-processing (noise injection, heavy recompression) may attenuate signatures.",
-            "Synthetic likelihood scores provide investigative triage probability to guide expert inspection, not definitive judicial proof of AI synthesis."
+            "The heuristic score is uncalibrated and is not a probability or confidence estimate; it requires independent validation and examiner review."
         ]
 
         try:
@@ -168,89 +168,95 @@ class AISyntheticAnalyzer:
                         )
                     )
 
-                # 5. Synthesize Calibrated Score
+                # 5. Synthesize an uncalibrated statistical heuristic score.
+                # Metadata is recorded as context only; the score always derives from image features.
                 if metadata_ai_found:
-                    synthetic_score = 0.98
+                    observations.append(f"Unverified AI-related metadata string observed: {meta_source}")
+
+                if cross_channel_corr > 0.95:
+                    c_score = 0.60 + 0.35 * ((cross_channel_corr - 0.95) / 0.05)
+                elif cross_channel_corr > 0.88:
+                    c_score = 0.40 + 0.20 * ((cross_channel_corr - 0.88) / 0.07)
+                elif cross_channel_corr > 0.70:
+                    c_score = 0.15 + 0.25 * ((cross_channel_corr - 0.70) / 0.18)
                 else:
-                    if cross_channel_corr > 0.95:
-                        c_score = 0.60 + 0.35 * ((cross_channel_corr - 0.95) / 0.05)
-                    elif cross_channel_corr > 0.88:
-                        c_score = 0.40 + 0.20 * ((cross_channel_corr - 0.88) / 0.07)
-                    elif cross_channel_corr > 0.70:
-                        c_score = 0.15 + 0.25 * ((cross_channel_corr - 0.70) / 0.18)
-                    else:
-                        c_score = max(0.02, cross_channel_corr * 0.15)
+                    c_score = max(0.02, cross_channel_corr * 0.15)
 
-                    slope_dev = abs(spectral_slope - 2.05)
-                    s_score = min(0.35, max(0.0, (slope_dev - 0.35) * 0.5)) if slope_dev > 0.35 else 0.0
-                    a_score = min(0.30, max(0.0, (spatial_autocorr - 0.25) * 0.8)) if spatial_autocorr > 0.25 else 0.0
-                    p_score = 0.25 if hf_peak_count > 2500 and hf_peak_density > 0.4 else (0.10 if hf_peak_count > 1000 else 0.0)
-                    k_score = min(0.15, max(0.0, (patch_kurtosis - 5.0) * 0.02)) if patch_kurtosis > 5.0 else 0.0
+                slope_dev = abs(spectral_slope - 2.05)
+                s_score = min(0.35, max(0.0, (slope_dev - 0.35) * 0.5)) if slope_dev > 0.35 else 0.0
+                a_score = min(0.30, max(0.0, (spatial_autocorr - 0.25) * 0.8)) if spatial_autocorr > 0.25 else 0.0
+                p_score = 0.25 if hf_peak_count > 2500 and hf_peak_density > 0.4 else (0.10 if hf_peak_count > 1000 else 0.0)
+                k_score = min(0.15, max(0.0, (patch_kurtosis - 5.0) * 0.02)) if patch_kurtosis > 5.0 else 0.0
 
-                    raw_score = 0.45 * c_score + 0.20 * s_score + 0.15 * a_score + 0.12 * p_score + 0.08 * k_score
-                    synthetic_score = min(0.96, max(0.04, raw_score * 1.5))
-
+                raw_score = 0.45 * c_score + 0.20 * s_score + 0.15 * a_score + 0.12 * p_score + 0.08 * k_score
+                synthetic_score = min(0.96, max(0.04, raw_score * 1.5))
                 synthetic_pct = round(float(synthetic_score * 100.0), 1)
 
-                analytics["synthetic_likelihood_pct"] = synthetic_pct
-                analytics["synthetic_likelihood_index_percent"] = synthetic_pct
+                analytics["raw_heuristic_score_percent"] = synthetic_pct
+                analytics["raw_heuristic_score_percent"] = synthetic_pct
                 analytics["spectral_decay_slope"] = round(float(spectral_slope), 2)
                 analytics["cross_channel_correlation"] = round(float(cross_channel_corr), 3)
                 analytics["spatial_autocorrelation"] = round(float(spatial_autocorr), 3)
                 analytics["hf_lattice_peaks"] = int(hf_peak_count)
                 analytics["patch_kurtosis"] = round(float(patch_kurtosis), 2)
                 analytics["metadata_flagged"] = metadata_ai_found
+                analytics["metadata_flag_source"] = meta_source if metadata_ai_found else None
+                analytics["score_semantics"] = "UNCALIBRATED_HEURISTIC_NOT_PROBABILITY"
 
-                # Generate Visual Artifact
-                resized_map = cv2.resize(norm_patch_scores, (width, height), interpolation=cv2.INTER_CUBIC)
-                norm_vis = cv2.normalize(resized_map, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-                colored_vis = cv2.applyColorMap(norm_vis, cv2.COLORMAP_MAGMA)
-                blended = cv2.addWeighted(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR), 0.35, colored_vis, 0.65, 0)
+                # Visualization is best-effort and must not invalidate detector analysis.
+                try:
+                    resized_map = cv2.resize(norm_patch_scores, (width, height), interpolation=cv2.INTER_CUBIC)
+                    norm_vis = cv2.normalize(resized_map, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+                    colored_vis = cv2.applyColorMap(norm_vis, cv2.COLORMAP_MAGMA)
+                    blended = cv2.addWeighted(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR), 0.35, colored_vis, 0.65, 0)
+                    artifact_filename = f"{examination_id}_ai_synthetic.png"
+                    artifact_path = settings.ARTIFACTS_DIR / artifact_filename
+                    if cv2.imwrite(str(artifact_path), blended):
+                        artifacts["ai_synthetic_map"] = artifact_filename
+                    else:
+                        limitations.append("AI heuristic visualization could not be written; numeric screening features remain available.")
+                except Exception as visualization_error:
+                    limitations.append(f"AI heuristic visualization unavailable: {visualization_error}")
 
-                artifact_filename = f"{examination_id}_ai_synthetic.png"
-                artifact_path = settings.ARTIFACTS_DIR / artifact_filename
-                cv2.imwrite(str(artifact_path), blended)
-                artifacts["ai_synthetic_map"] = artifact_filename
-
-                observations.append(f"Synthetic Likelihood Index: {synthetic_pct}% (calibrated multi-feature residual model).")
+                observations.append(f"Raw uncalibrated statistical heuristic score: {synthetic_pct} (not a probability).")
                 observations.append(f"Fourier radial spectral decay slope: alpha={spectral_slope:.2f}.")
                 observations.append(f"Cross-channel noise residual correlation: {cross_channel_corr:.3f}.")
                 observations.append(f"Spatial noise residual autocorrelation: {spatial_autocorr:.3f}.")
 
-                # Calibrated Decision
-                if synthetic_score >= 0.75 or metadata_ai_found:
+                # Exploratory threshold only; this score is not calibrated.
+                if synthetic_score >= 0.75:
                     indicator = "indicator_detected"
-                    indicator_label = f"AI Generative / Synthetic Traces Detected ({synthetic_pct}%)"
+                    indicator_label = f"AI-generation-related statistical indicators detected (raw heuristic score {synthetic_pct}; uncalibrated)"
                     norm_status = DetectorStatus.POSITIVE.value
-                    confidence = 0.88
-                    strength = EvidenceStrength.STRONG.value
+                    confidence = None
+                    strength = EvidenceStrength.LOW.value
                     explanation = (
-                        f"Elevated AI generative traces detected (Synthetic Likelihood Index: {synthetic_pct}%). "
+                        f"Elevated statistical indicators were observed (raw uncalibrated heuristic score: {synthetic_pct}). "
                         f"Noise residual cross-channel correlation ({cross_channel_corr:.3f}), spatial autocorrelation ({spatial_autocorr:.3f}), "
                         f"and spectral roll-off (alpha={spectral_slope:.2f}) deviate significantly from physical optical sensor physics, "
-                        "exhibiting statistical signatures characteristic of latent diffusion synthesis or generative fill."
+                        "these observations are not specific enough to attribute the image to a generative model without independent corroboration."
                     )
                 elif synthetic_score >= 0.45:
                     indicator = "inconclusive"
                     indicator_label = f"Inconclusive / Mixed Indicators ({synthetic_pct}%)"
                     norm_status = DetectorStatus.INCONCLUSIVE.value
-                    confidence = 0.50
-                    strength = EvidenceStrength.LOW.value
+                    confidence = None
+                    strength = EvidenceStrength.NONE.value
                     explanation = (
-                        f"Moderate synthetic likelihood score ({synthetic_pct}%). "
+                        f"Moderate raw statistical heuristic score ({synthetic_pct}; uncalibrated). "
                         "Image exhibits partial spectral flattening or atypical noise correlation, but insufficient to conclusively distinguish "
                         "between synthetic generation, digital rendering, and heavy recompression smoothing."
                     )
                 else:
                     indicator = "no_indicator_detected"
-                    indicator_label = f"No AI Generative Traces Detected ({synthetic_pct}%)"
+                    indicator_label = f"No AI-generation heuristic indicators detected (raw score {synthetic_pct}; uncalibrated)"
                     norm_status = DetectorStatus.NEGATIVE.value
-                    confidence = 0.85
+                    confidence = None
                     strength = EvidenceStrength.NONE.value
                     explanation = (
-                        f"Low synthetic likelihood index ({synthetic_pct}%). "
+                        f"Low uncalibrated heuristic score ({synthetic_pct}; not a probability). "
                         f"Radial spectral decay (alpha={spectral_slope:.2f}) and noise residual correlations conform to standard "
-                        "natural optical capture or regular unmanipulated digital graphics. No generative AI lattice signatures identified."
+                        "the measured features did not cross the exploratory heuristic threshold. This does not establish natural optical capture or exclude generation/editing."
                     )
 
         except Exception as e:
@@ -270,8 +276,8 @@ class AISyntheticAnalyzer:
                 detector_name=cls.METHOD_NAME,
                 detector_version=cls.VERSION,
                 status=DetectorStatus.ERROR.value,
-                score=0.0,
-                confidence=0.0,
+                score=None,
+                confidence=None,
                 evidence_strength=EvidenceStrength.NONE.value,
                 applicable=True,
                 technical_reason=str(e),
@@ -292,7 +298,7 @@ class AISyntheticAnalyzer:
             limitations=limitations,
             execution_time_ms=exec_time,
             score=round(synthetic_score, 3),
-            confidence=round(confidence, 3),
+            confidence=None,
             evidence_strength=strength,
             normalized_status=norm_status,
             affected_regions=affected_regions,
@@ -302,7 +308,7 @@ class AISyntheticAnalyzer:
             detector_version=cls.VERSION,
             status=norm_status,
             score=round(synthetic_score, 3),
-            confidence=round(confidence, 3),
+            confidence=None,
             evidence_strength=strength,
             applicable=True,
             technical_reason=explanation,

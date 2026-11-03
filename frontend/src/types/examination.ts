@@ -1,3 +1,17 @@
+type DecisionAssessment =
+  | 'MANIPULATION_INDICATORS_DETECTED'
+  | 'AI_GENERATION_INDICATORS_DETECTED'
+  | 'PROVENANCE_VERIFIED'
+  | 'PROVENANCE_CONFLICT'
+  | 'NO_MANIPULATION_INDICATORS_DETECTED'
+  | 'INCONCLUSIVE'
+  | 'INSUFFICIENT_EVIDENCE'
+  | 'UNSUPPORTED_FORMAT'
+  | 'ERROR'
+  // Legacy values remain readable for earlier records.
+  | 'LIKELY_AUTHENTIC'
+  | 'LIKELY_TAMPERED'
+  | null;
 export interface FileIntegrityInfo {
   algorithm: string;
   digest: string;
@@ -106,8 +120,8 @@ export interface ExaminationDetail {
   disclaimer: string;
 
   // v2 fields
-  decision_assessment?: 'LIKELY_AUTHENTIC' | 'LIKELY_TAMPERED' | 'INCONCLUSIVE' | null;
-  evidence_strength?: 'STRONG' | 'MODERATE' | 'WEAK' | 'NONE' | 'UNKNOWN' | null;
+  decision_assessment?: DecisionAssessment;
+  evidence_strength?: 'VERY_STRONG' | 'STRONG' | 'MODERATE' | 'LOW' | 'NONE' | 'WEAK' | 'UNKNOWN' | null;
   decision_confidence?: number | null;
   detector_results?: DetectorResult[] | null;
   image_characterization?: ImageCharacterization | null;
@@ -130,7 +144,7 @@ export interface ExaminationOverview {
   overall_assessment: string;
   human_review_status: string;
   // v2 fields
-  decision_assessment?: 'LIKELY_AUTHENTIC' | 'LIKELY_TAMPERED' | 'INCONCLUSIVE' | null;
+  decision_assessment?: DecisionAssessment;
   evidence_strength?: 'STRONG' | 'MODERATE' | 'WEAK' | 'NONE' | 'UNKNOWN' | null;
 }
 

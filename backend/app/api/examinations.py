@@ -78,6 +78,7 @@ def _format_examination_response(exam: Examination) -> ExaminationDetailResponse
         overall_assessment=exam.overall_assessment,
         decision_assessment=exam.decision_assessment or "INCONCLUSIVE",
         evidence_strength=exam.evidence_strength or "NONE",
+        decision_confidence=exam.decision_confidence,
         decision_output=decision_output,
         detector_results=detector_results,
         image_characterization=exam.image_characterization or {},
@@ -183,7 +184,7 @@ async def create_examination(
         exam.overall_assessment = pipeline_output["overall_assessment"]
         exam.decision_assessment = pipeline_output.get("decision_assessment", "INCONCLUSIVE")
         exam.evidence_strength = pipeline_output.get("evidence_strength", "NONE")
-        exam.decision_confidence = pipeline_output.get("decision_confidence", 50)
+        exam.decision_confidence = pipeline_output.get("decision_confidence")
         exam.capture_timestamp = pipeline_output["capture_timestamp"]
         exam.extracted_metadata = pipeline_output["extracted_metadata"]
         exam.test_results = [t.model_dump() for t in pipeline_output["tests"]]
@@ -269,6 +270,7 @@ def list_examinations(
             overall_assessment=e.overall_assessment,
             decision_assessment=e.decision_assessment or "INCONCLUSIVE",
             evidence_strength=e.evidence_strength or "NONE",
+            decision_confidence=e.decision_confidence,
             human_review_status=e.human_review_status,
         )
         for e in results

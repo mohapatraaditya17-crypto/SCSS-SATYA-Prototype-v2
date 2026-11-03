@@ -37,7 +37,7 @@ class Examination(Base):
     # SATYA v2 Decision Engine Fields
     decision_assessment = Column(String(64), default="INCONCLUSIVE", nullable=True)  # LIKELY_AUTHENTIC, LIKELY_TAMPERED, INCONCLUSIVE
     evidence_strength = Column(String(32), default="NONE", nullable=True)  # NONE, LOW, MODERATE, STRONG, VERY_STRONG
-    decision_confidence = Column(Integer, default=50, nullable=True)  # 0 to 100
+    decision_confidence = Column(Integer, default=None, nullable=True)  # 0 to 100; null until calibrated
     decision_data = Column(JSON, default=dict, nullable=True)
     detector_results = Column(JSON, default=list, nullable=True)
     image_characterization = Column(JSON, default=dict, nullable=True)

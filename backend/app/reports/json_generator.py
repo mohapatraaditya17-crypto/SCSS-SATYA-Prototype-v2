@@ -36,7 +36,7 @@ class JSONReportGenerator:
             "technical_assessment": {
                 "decision_assessment": exam.decision_assessment or "INCONCLUSIVE",
                 "evidence_strength": exam.evidence_strength or "NONE",
-                "decision_confidence_pct": exam.decision_confidence or 50,
+                "decision_confidence_pct": exam.decision_confidence,
                 "decision_data": exam.decision_data or {},
                 "human_review_required": True,
             },

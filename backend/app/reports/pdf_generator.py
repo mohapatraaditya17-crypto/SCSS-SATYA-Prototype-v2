@@ -193,8 +193,9 @@ class PDFReportGenerator:
              Paragraph("Workflow Status", meta_label_style), Paragraph(f"<b>{exam.overall_assessment.replace('_', ' ').upper()}</b>", meta_val_style)],
             [Paragraph("Technical Assessment", meta_label_style), Paragraph(f"<b>{exam.decision_assessment or 'INCONCLUSIVE'}</b>", meta_val_style),
              Paragraph("Evidence Strength", meta_label_style), Paragraph(f"<b>{exam.evidence_strength or 'NONE'}</b>", meta_val_style)],
+            [Paragraph("Decision Confidence", meta_label_style), Paragraph("<b>Not calibrated</b>" if exam.decision_confidence is None else f"<b>{exam.decision_confidence}%</b>", meta_val_style),
+             Paragraph("Human Review", meta_label_style), Paragraph("<b>REQUIRED</b>", meta_val_style)],
         ]
-
         evidence_table = Table(evidence_data, colWidths=[100, 160, 100, 144])
         evidence_table.setStyle(
             TableStyle([

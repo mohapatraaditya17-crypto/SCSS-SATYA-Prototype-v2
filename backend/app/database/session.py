@@ -28,7 +28,7 @@ def run_migrations():
             new_columns = [
                 ("decision_assessment", "VARCHAR(64) DEFAULT 'INCONCLUSIVE'"),
                 ("evidence_strength", "VARCHAR(32) DEFAULT 'NONE'"),
-                ("decision_confidence", "INTEGER DEFAULT 50"),
+                ("decision_confidence", "INTEGER DEFAULT NULL"),
                 ("decision_data", "JSON DEFAULT '{}'"),
                 ("detector_results", "JSON DEFAULT '[]'"),
                 ("image_characterization", "JSON DEFAULT '{}'"),
@@ -36,6 +36,14 @@ def run_migrations():
                 ("detector_versions", "JSON DEFAULT '{}'"),
             ]
 
+            # The current release has no empirical calibrator. A stored 50 is
+            # the legacy database default rather than a calibrated probability.
+            if "decision_confidence" in existing_cols:
+                conn.execute(text(
+                    "UPDATE examinations SET decision_confidence = NULL "
+                    "WHERE decision_confidence = 50"
+                ))
+                conn.commit()
             for col_name, col_def in new_columns:
                 if col_name not in existing_cols:
                     conn.execute(text(f"ALTER TABLE examinations ADD COLUMN {col_name} {col_def}"))
