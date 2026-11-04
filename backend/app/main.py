@@ -10,6 +10,7 @@ from app.database.session import engine, Base, run_migrations
 import app.database.models  # Register models with Base
 from app.api.health import router as health_router
 from app.api.examinations import router as examinations_router
+from app.api.demo import router as demo_router
 
 # Configure logger
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -22,12 +23,13 @@ run_migrations()
 app = FastAPI(
     title=settings.PROJECT_FULL_NAME,
     description="""
-## Forensic-Led Digital Image Authenticity Screening Platform
+## SCSS-SATYA V3 — Forensic-Led Digital Image Authenticity Screening Platform
 Developed for **Sure Clue Scientific Solutions (SCSS)**.
 
 ### Core Guiding Doctrine:
-> **"The tool screens. The expert decides."**  
-> Automated findings are never presented as conclusive forensic opinions, legal proof, or definitive proof that an image is authentic or manipulated.
+> **"The tool screens. The evidence speaks. The expert decides."**
+> Automated findings are never presented as conclusive forensic opinions, legal proof,
+> or definitive proof that an image is authentic or manipulated.
 
 ### Defensible 4-Layer Architecture:
 1. **Passive-Blind Screening**: Technical indicators across metadata, ELA, and sensor/image consistency.
@@ -70,9 +72,10 @@ async def generic_exception_handler(request: Request, exc: Exception):
 # Register API routers
 app.include_router(health_router, prefix="/api")
 app.include_router(examinations_router, prefix="/api")
+app.include_router(demo_router, prefix="/api")
 
 
-# Optional: Mount frontend build if built into backend/static
+# Optional: Mount frontend build if built into frontend/dist
 frontend_dist = settings.ROOT_DIR / "frontend" / "dist"
 if frontend_dist.exists():
     app.mount("/assets", StaticFiles(directory=frontend_dist / "assets"), name="assets")
