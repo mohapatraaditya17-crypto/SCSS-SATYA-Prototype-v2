@@ -61,3 +61,5 @@ storage/reports/*
 *.swo
 .DS_Store
 Thumbs.db
+.stealth/
+frontend/dist/
